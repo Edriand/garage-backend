@@ -65,6 +65,13 @@ export class GarageBackendStack extends cdk.Stack {
       selfSignUpEnabled: true,
       email:            cognito.UserPoolEmail.withCognito(),
       removalPolicy:    cdk.RemovalPolicy.RETAIN,
+      featurePlan:  cognito.FeaturePlan.ESSENTIALS,
+      signInPolicy: {
+        allowedFirstAuthFactors: {
+          password: true,
+          emailOtp: true,
+        },
+      },
     });
 
     this.userPoolClient = new cognito.UserPoolClient(this, 'GarageUserPoolClient', {
@@ -84,6 +91,15 @@ export class GarageBackendStack extends cdk.Stack {
       preventUserExistenceErrors: true,
       enableTokenRevocation:      true,
     });
+
+    // ALLOW_USER_AUTH is not yet in the L2 AuthFlow interface — add via escape hatch
+    const cfnClient = this.userPoolClient.node.defaultChild as cognito.CfnUserPoolClient;
+    cfnClient.addPropertyOverride('ExplicitAuthFlows', [
+      'ALLOW_USER_PASSWORD_AUTH',
+      'ALLOW_USER_SRP_AUTH',
+      'ALLOW_USER_AUTH',
+      'ALLOW_REFRESH_TOKEN_AUTH',
+    ]);
 
     // ========================================================================
     // Amazon DynamoDB — single-table design
