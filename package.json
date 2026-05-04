@@ -9,6 +9,7 @@
     "synth": "cdk synth",
     "deploy": "cdk deploy",
     "diff": "cdk diff",
+    "destroy": "cdk destroy",
     "test": "jest"
   },
   "keywords": [
