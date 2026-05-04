@@ -295,6 +295,8 @@ export class GarageBackendStack extends cdk.Stack {
           type:        { type: apigateway.JsonSchemaType.STRING, enum: ['mechanic', 'fuel', 'insurance', 'other'] },
           description: { type: apigateway.JsonSchemaType.STRING },
           amount:      { type: apigateway.JsonSchemaType.NUMBER },
+          photoKeys:   { type: apigateway.JsonSchemaType.ARRAY, items: { type: apigateway.JsonSchemaType.STRING } },
+          docKeys:     { type: apigateway.JsonSchemaType.ARRAY, items: { type: apigateway.JsonSchemaType.STRING } },
         },
       },
     });
