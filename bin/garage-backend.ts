@@ -5,18 +5,18 @@ import { GarageBackendStack } from '../lib/garage-backend-stack';
 
 const app = new cdk.App();
 
-// Configure the environment (account and region)
-// By default, it will use the AWS CLI configured account and region
+// Configure environment using AWS CLI credentials
 const env = {
   account: process.env.CDK_DEFAULT_ACCOUNT,
   region: process.env.CDK_DEFAULT_REGION,
 };
 
-new GarageBackendStack(app, 'GarageBackendStack', {
+// Create the main stack with environment configuration
+const stack = new GarageBackendStack(app, 'GarageBackendStack', {
   env,
-  description: 'Garage Backend - Vehicle management and workshop platform',
+  description: 'Backend infrastructure for Garage vehicle management platform',
   
-  // Add tags to all resources in the stack
+  // Stack-level tags for better resource organization and cost management
   tags: {
     Project: 'Garage',
     Environment: process.env.ENVIRONMENT || 'dev',
@@ -24,5 +24,5 @@ new GarageBackendStack(app, 'GarageBackendStack', {
   },
 });
 
-// Add stack-level tags
-cdk.Tags.of(app).add('Application', 'GarageBackend');
+// Application-level tags applied to all resources
+cdk.Tags.of(app).add('Application', 'garage-backend');

@@ -1,2 +1,10 @@
-# This file ensures the lambda directory is tracked by git
-# Lambda function handlers will be placed in this directory
+# This directory will contain Lambda function handlers
+# 
+# Structure:
+# lambda/
+#   ├── vehicles/
+#   │   ├── create.ts
+#   │   ├── update.ts
+#   │   └── ...
+#   ├── workshops/
+#   └── appointments/

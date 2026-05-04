@@ -1,178 +1,222 @@
-# Garage Backend
+# 🚗 Garage Backend
 
-Backend API for a vehicle management and workshop platform, built on AWS.
+Backend API for a vehicle management and workshop platform, built on AWS using Infrastructure as Code (IaC).
 
-## 📋 Descripción
+## 📋 Description
 
-Este proyecto es un backend para exponer coches personales con historial de eventos, fotos, documentos (facturas/tickets) y gestión de gastos e información del vehículo.
+Garage Backend provides a serverless REST API for managing vehicles, workshops, and appointments. Built entirely on AWS using CDK (Cloud Development Kit), this project leverages modern cloud architecture patterns for scalability, reliability, and cost-effectiveness.
 
-## 🏗️ Stack Técnico
+## 🏗️ Technology Stack
 
-- **AWS CDK v2** - Infrastructure as Code
-- **TypeScript** - Lenguaje de programación
-- **Node.js 24+** - Runtime
-- **AWS Services** - API Gateway, Lambda, DynamoDB, S3, Cognito
+- **AWS CDK** - Infrastructure as Code framework
+- **TypeScript** - Primary programming language
+- **Amazon Cognito** - User authentication and authorization (planned)
+- **API Gateway** - REST API management (planned)
+- **AWS Lambda** - Serverless compute (planned)
+- **Amazon DynamoDB** - NoSQL database (planned)
+- **Amazon S3** - File storage (planned)
+- **CloudWatch** - Logging and monitoring (planned)
 
-## 📁 Estructura del Proyecto
+## 📁 Project Structure
 
 ```
 garage-backend/
-├── bin/                    # Entry point del CDK app
-│   └── garage-backend.ts   # Definición de la aplicación CDK
-├── lib/                    # Definición de stacks y constructs
-│   └── garage-backend-stack.ts
-├── lambda/                 # Funciones Lambda (handlers)
-│   └── .gitkeep
-├── cdk.json               # Configuración del CDK
-├── tsconfig.json          # Configuración de TypeScript
-└── package.json           # Dependencias del proyecto
+├── bin/
+│   └── garage-backend.ts      # CDK app entry point with env config
+├── lib/
+│   └── garage-backend-stack.ts # Main infrastructure stack
+├── lambda/                     # Lambda function handlers (future)
+│   ├── vehicles/
+│   ├── workshops/
+│   └── appointments/
+├── .env.example                # Environment variables documentation
+├── cdk.json                    # CDK configuration
+├── package.json                # Node.js dependencies and scripts
+├── tsconfig.json               # TypeScript configuration
+└── README.md                   # This file
 ```
 
-## 🚀 Requisitos Previos
+## 🚀 Getting Started
 
-- Node.js 24 o superior
-- AWS CLI configurado con credenciales válidas
-- AWS CDK CLI instalado globalmente:
+### Prerequisites
+
+- **Node.js** (v18 or later) - [Download](https://nodejs.org/)
+- **AWS Account** - [Sign up](https://aws.amazon.com/)
+- **AWS CLI** configured - [Installation guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
+- **AWS CDK CLI** installed globally:
   ```bash
   npm install -g aws-cdk
   ```
 
-## 🔧 Instalación
+### Installation
 
-1. Clonar el repositorio:
+1. **Clone the repository**
    ```bash
    git clone https://github.com/Edriand/garage-backend.git
    cd garage-backend
    ```
 
-2. Instalar dependencias:
+2. **Install dependencies**
    ```bash
    npm install
    ```
 
-3. Configurar variables de entorno (opcional):
+3. **Configure AWS credentials**
+   
+   Ensure your AWS CLI is configured with valid credentials:
    ```bash
-   # Crear archivo .env si es necesario
-   cp .env.example .env
+   aws configure
+   ```
+   
+   Or use AWS profiles:
+   ```bash
+   export AWS_PROFILE=your-profile-name
    ```
 
-## 📝 Configuración
+4. **Bootstrap CDK (first time only)**
+   
+   If this is your first CDK project in this AWS account/region:
+   ```bash
+   cdk bootstrap
+   ```
 
-### Variables de Entorno
+### Configuration
 
-El stack puede ser configurado mediante variables de entorno o contextos de CDK:
+The project uses AWS CLI credentials by default. Optionally, you can set environment variables:
 
-- `CDK_DEFAULT_ACCOUNT` - AWS Account ID (por defecto usa el de tu perfil AWS CLI)
-- `CDK_DEFAULT_REGION` - AWS Region (por defecto usa la de tu perfil AWS CLI)
-
-### Context Variables (cdk.json)
-
-Puedes personalizar valores en `cdk.json` bajo la sección `context`.
-
-## 🛠️ Comandos Básicos
-
-### Build
-
-Compilar el proyecto TypeScript:
 ```bash
+# Copy the example file
+cp .env.example .env
+
+# Edit .env with your preferences
+ENVIRONMENT=dev  # Options: dev, staging, prod
+```
+
+**Note:** The `.env` file is ignored by git to prevent credential leaks.
+
+## 🛠️ Available Commands
+
+### Development
+
+```bash
+# Compile TypeScript to JavaScript
 npm run build
-```
 
-### Watch Mode
-
-Compilar automáticamente en cada cambio:
-```bash
+# Watch for changes and compile automatically
 npm run watch
+
+# Run tests
+npm run test
 ```
 
-### CDK Synth
+### CDK Operations
 
-Sintetizar la plantilla de CloudFormation:
 ```bash
+# Synthesize CloudFormation template
 npm run synth
-# o
+# or
 cdk synth
-```
 
-### CDK Diff
-
-Ver diferencias antes de desplegar:
-```bash
+# Compare deployed stack with current state
 npm run diff
-# o
+# or
 cdk diff
-```
 
-### CDK Deploy
-
-Desplegar el stack a AWS:
-```bash
+# Deploy infrastructure to AWS
 npm run deploy
-# o
+# or
 cdk deploy
-```
 
-Para aprobar automáticamente cambios de IAM/seguridad:
-```bash
-cdk deploy --require-approval never
-```
-
-### CDK Destroy
-
-Eliminar todos los recursos del stack:
-```bash
+# Destroy all resources (careful!)
 npm run destroy
-# o
+# or
 cdk destroy
 ```
 
-### Bootstrap (Primera vez)
-
-Si es la primera vez que usas CDK en tu cuenta/región:
-```bash
-cdk bootstrap aws://ACCOUNT-NUMBER/REGION
-```
-
-## 🧪 Testing
+### Useful CDK Commands
 
 ```bash
-npm test
+# List all stacks in the app
+cdk ls
+
+# Show the CloudFormation template
+cdk synth
+
+# Deploy specific stack
+cdk deploy GarageBackendStack
+
+# View stack outputs
+cdk deploy --outputs-file outputs.json
 ```
 
-## 🌐 Despliegue
+## 🏷️ Resource Tagging
 
-### Desarrollo
+All resources are automatically tagged for better organization:
 
-```bash
-# Revisar cambios
-npm run diff
+- **Application**: `garage-backend`
+- **Project**: `Garage`
+- **Environment**: `dev` (or from `ENVIRONMENT` variable)
+- **ManagedBy**: `CDK`
 
-# Desplegar
-npm run deploy
-```
+These tags help with:
+- Cost allocation and tracking
+- Resource organization in AWS Console
+- Automated resource management
+- Compliance and governance
 
-### Producción
+## 🔐 Security Best Practices
 
-Para producción, se recomienda usar CI/CD con GitHub Actions o similar.
+- ✅ No hardcoded credentials or account IDs
+- ✅ Environment-based configuration
+- ✅ `.env` files excluded from version control
+- ✅ AWS CLI credential management
+- 🔜 IAM roles with least privilege (planned)
+- 🔜 Cognito authentication (planned)
+- 🔜 API Gateway authorization (planned)
 
-## 📚 Recursos Útiles
+## 📊 Current Status
 
-- [AWS CDK Documentation](https://docs.aws.amazon.com/cdk/v2/guide/home.html)
-- [CDK API Reference](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-construct-library.html)
-- [CDK Patterns](https://cdkpatterns.com/)
-- [AWS Well-Architected Framework](https://aws.amazon.com/architecture/well-architected/)
+**Version**: 0.1.0 (Initial setup)
 
-## 📄 Licencia
+### ✅ Completed
+- [x] CDK project initialization
+- [x] TypeScript configuration
+- [x] Project structure
+- [x] Environment configuration
+- [x] Tagging strategy
+- [x] Documentation
+
+### 🚧 In Progress / Planned
+- [ ] Cognito User Pool (Issue #4)
+- [ ] API Gateway REST API (Issue #5)
+- [ ] Lambda functions
+- [ ] DynamoDB tables
+- [ ] S3 file storage
+- [ ] CloudWatch monitoring
+
+## 🤝 Contributing
+
+1. Check open issues for tasks
+2. Create a feature branch: `git checkout -b feature/issue-X`
+3. Make your changes following the project conventions
+4. Ensure tests pass: `npm test`
+5. Submit a Pull Request referencing the issue
+
+## 📚 Resources
+
+- [AWS CDK Documentation](https://docs.aws.amazon.com/cdk/latest/guide/home.html)
+- [AWS CDK API Reference](https://docs.aws.amazon.com/cdk/api/v2/)
+- [AWS CDK Examples](https://github.com/aws-samples/aws-cdk-examples)
+- [TypeScript CDK Workshop](https://cdkworkshop.com/20-typescript.html)
+
+## 📝 License
 
 ISC
 
-## 👥 Contribución
+## 👤 Author
 
-1. Crear un issue describiendo el cambio
-2. Crear una rama desde `main`
-3. Realizar los cambios y hacer commit
-4. Abrir un Pull Request
+GitHub: [@Edriand](https://github.com/Edriand)
 
-## 🔒 Seguridad
+---
 
-No incluir credenciales, secrets o información sensible en el código. Usar AWS Secrets Manager o Parameter Store para gestionar secretos.
+**Note**: This project is under active development. Check the issues page for planned features and current work.
