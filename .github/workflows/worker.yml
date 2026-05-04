@@ -6,15 +6,32 @@ name: Trigger Worker Agent
 on:
   issues:
     types: [assigned]
+  issue_comment:
+    types: [created]
 
 jobs:
   dispatch:
     runs-on: ubuntu-latest
+    if: |
+      !contains(github.event.issue.labels.*.name, 'documentation') &&
+      !contains(github.event.issue.labels.*.name, 'automated') &&
+      (
+        github.event_name == 'issues' ||
+        (
+          github.event_name == 'issue_comment' &&
+          github.event.issue.state == 'open' &&
+          !contains(github.event.comment.body, '<!-- worker-bot -->') &&
+          github.event.issue.pull_request == null
+        )
+      )
     steps:
       - uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GHUB_TOKEN }}
           script: |
+            const trigger = context.eventName === 'issue_comment' ? 'comment' : 'assigned';
+            const issueNumber = context.payload.issue.number;
+
             await github.rest.repos.createDispatchEvent({
               owner: 'Edriand',
               repo: 'agent-system',
@@ -22,7 +39,8 @@ jobs:
               client_payload: {
                 project_owner: context.repo.owner,
                 project_repo: context.repo.repo,
-                issue_number: context.payload.issue.number,
-                project_number: 2
+                issue_number: issueNumber,
+                project_number: 2,
+                trigger: trigger
               }
             })
