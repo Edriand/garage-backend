@@ -52,3 +52,33 @@ npm run destroy   # Tear down the stack
 - DynamoDB uses single-table design — see `docs/data-model.md`
 - All API endpoints require Cognito JWT authorization
 - Pagination uses DynamoDB `LastEvaluatedKey` as `nextToken`, page size 300
+
+## AWS resource naming
+
+All AWS resources must follow this pattern:
+
+```
+{projectName}-{version}-{environment}-{resourceName}
+```
+
+| Segment | Values | Example |
+|---|---|---|
+| `projectName` | `garage` | `garage` |
+| `version` | `v1`, `v2`, … | `v1` |
+| `environment` | `dev`, `staging`, `prod` | `prod` |
+| `resourceName` | short descriptor in kebab-case | `vehicles-table`, `assets-bucket` |
+
+**Examples:**
+- DynamoDB table → `garage-v1-prod-vehicles-table`
+- S3 bucket → `garage-v1-prod-assets-bucket`
+- Lambda function → `garage-v1-dev-get-vehicle`
+- Cognito User Pool → `garage-v1-prod-user-pool`
+- API Gateway → `garage-v1-prod-api`
+
+In CDK, derive the name from the `environment` context variable so it is consistent across stacks:
+
+```typescript
+const env = this.node.tryGetContext("environment") ?? "dev";
+const prefix = `garage-v1-${env}`;
+// e.g. `${prefix}-vehicles-table`
+```
