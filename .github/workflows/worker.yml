@@ -1,5 +1,5 @@
 # Copia este archivo a .github/workflows/worker.yml en cada repo cliente.
-# Solo necesita el secret GH_TOKEN (tu GitHub PAT con scope repo+workflow).
+# Solo necesita el secret GHUB_TOKEN (tu GitHub PAT con scope repo+workflow).
 
 name: Trigger Worker Agent
 
@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.GH_TOKEN }}
+          github-token: ${{ secrets.GHUB_TOKEN }}
           script: |
             await github.rest.repos.createDispatchEvent({
               owner: 'Edriand',
