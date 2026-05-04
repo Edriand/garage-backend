@@ -10,7 +10,7 @@ Garage Backend provides a serverless REST API for managing vehicles, workshops, 
 
 - **AWS CDK** - Infrastructure as Code framework
 - **TypeScript** - Primary programming language
-- **Amazon Cognito** - User authentication and authorization (planned)
+- **Amazon Cognito** - User authentication and authorization ✅
 - **API Gateway** - REST API management (planned)
 - **AWS Lambda** - Serverless compute (planned)
 - **Amazon DynamoDB** - NoSQL database (planned)
@@ -29,6 +29,10 @@ garage-backend/
 │   ├── vehicles/
 │   ├── workshops/
 │   └── appointments/
+├── docs/                       # Documentation
+│   ├── architecture.md         # System architecture overview
+│   ├── data-model.md          # Database schema and design
+│   └── api.md                 # API endpoints specification
 ├── .env.example                # Environment variables documentation
 ├── cdk.json                    # CDK configuration
 ├── package.json                # Node.js dependencies and scripts
@@ -149,6 +153,116 @@ cdk deploy GarageBackendStack
 cdk deploy --outputs-file outputs.json
 ```
 
+## 🔐 Authentication Flow
+
+The application uses **Amazon Cognito** for user authentication, providing secure JWT-based authentication.
+
+### User Registration Flow
+
+1. **Sign Up**: User provides email, password, and optional profile information
+2. **Email Verification**: Cognito sends a verification code to the user's email
+3. **Confirm Sign Up**: User enters the verification code to activate their account
+4. **Sign In**: User can now authenticate with email and password
+
+### Authentication Flow
+
+1. **Login**: User sends email and password to Cognito
+2. **Token Response**: Cognito returns three tokens:
+   - **ID Token**: Contains user identity claims (profile info)
+   - **Access Token**: Used for API authorization (1 hour validity)
+   - **Refresh Token**: Used to obtain new tokens (30 days validity)
+3. **API Requests**: Client includes Access Token in `Authorization: Bearer <token>` header
+4. **Token Refresh**: When Access Token expires, use Refresh Token to get new tokens
+
+### Password Policy
+
+- Minimum 8 characters
+- At least one uppercase letter
+- At least one lowercase letter  
+- At least one number
+- Symbols are optional
+
+### Using the AWS CLI to Test Authentication
+
+After deploying the stack, you can test authentication using the AWS CLI:
+
+```bash
+# Get the User Pool ID and Client ID from stack outputs
+aws cloudformation describe-stacks --stack-name GarageBackendStack \
+  --query 'Stacks[0].Outputs' --output table
+
+# Sign up a new user
+aws cognito-idp sign-up \
+  --client-id <UserPoolClientId> \
+  --username user@example.com \
+  --password YourPassword123 \
+  --user-attributes Name=email,Value=user@example.com
+
+# Confirm the user (use the code sent to email)
+aws cognito-idp confirm-sign-up \
+  --client-id <UserPoolClientId> \
+  --username user@example.com \
+  --confirmation-code <code-from-email>
+
+# Sign in and get tokens
+aws cognito-idp initiate-auth \
+  --client-id <UserPoolClientId> \
+  --auth-flow USER_PASSWORD_AUTH \
+  --auth-parameters USERNAME=user@example.com,PASSWORD=YourPassword123
+
+# The response contains IdToken, AccessToken, and RefreshToken
+```
+
+### Frontend Integration
+
+When integrating with a frontend application (React, Angular, Vue, etc.):
+
+1. Use AWS Amplify library or Cognito SDK
+2. Configure with User Pool ID and Client ID from stack outputs
+3. Implement sign-up, sign-in, and sign-out flows
+4. Store tokens securely (memory or secure storage, never localStorage for sensitive apps)
+5. Include Access Token in all API requests
+6. Implement automatic token refresh before expiration
+
+Example with AWS Amplify (JavaScript):
+
+```javascript
+import { Amplify, Auth } from 'aws-amplify';
+
+// Configure Amplify with your Cognito settings
+Amplify.configure({
+  Auth: {
+    region: 'us-east-1',
+    userPoolId: 'us-east-1_xxxxxxxxx',
+    userPoolWebClientId: 'xxxxxxxxxxxxxxxxxxxxxxxxxx',
+  }
+});
+
+// Sign up
+await Auth.signUp({
+  username: 'user@example.com',
+  password: 'YourPassword123',
+  attributes: {
+    email: 'user@example.com',
+    name: 'John Doe',
+  }
+});
+
+// Sign in
+const user = await Auth.signIn('user@example.com', 'YourPassword123');
+
+// Get current session (includes tokens)
+const session = await Auth.currentSession();
+const accessToken = session.getAccessToken().getJwtToken();
+
+// Use token in API requests
+fetch('https://api.example.com/vehicles', {
+  headers: {
+    'Authorization': `Bearer ${accessToken}`
+  }
+});
+```
+
 ## 🏷️ Resource Tagging
 
 All resources are automatically tagged for better organization:
@@ -170,13 +284,16 @@ These tags help with:
 - ✅ Environment-based configuration
 - ✅ `.env` files excluded from version control
 - ✅ AWS CLI credential management
+- ✅ Cognito JWT authentication with strong password policy
+- ✅ Email verification for new accounts
+- ✅ Secure token management (1h access, 30d refresh)
+- ✅ User Pool retention policy to prevent accidental data loss
 - 🔜 IAM roles with least privilege (planned)
-- 🔜 Cognito authentication (planned)
 - 🔜 API Gateway authorization (planned)
 
 ## 📊 Current Status
 
-**Version**: 0.1.0 (Initial setup)
+**Version**: 0.1.0 (Initial setup + Authentication)
 
 ### ✅ Completed
 - [x] CDK project initialization
@@ -185,9 +302,12 @@ These tags help with:
 - [x] Environment configuration
 - [x] Tagging strategy
 - [x] Documentation
+- [x] Cognito User Pool with email authentication (Issue #4)
+- [x] User Pool Client for SPA/mobile apps (Issue #4)
+- [x] Password policy and email verification (Issue #4)
+- [x] Stack outputs for User Pool ID and Client ID (Issue #4)
 
 ### 🚧 In Progress / Planned
-- [ ] Cognito User Pool (Issue #4)
 - [ ] API Gateway REST API (Issue #5)
 - [ ] Lambda functions
 - [ ] DynamoDB tables
@@ -206,6 +326,8 @@ These tags help with:
 
 - [AWS CDK Documentation](https://docs.aws.amazon.com/cdk/latest/guide/home.html)
 - [AWS CDK API Reference](https://docs.aws.amazon.com/cdk/api/v2/)
+- [Amazon Cognito Documentation](https://docs.aws.amazon.com/cognito/)
+- [AWS Amplify Authentication](https://docs.amplify.aws/lib/auth/getting-started/q/platform/js/)
 - [AWS CDK Examples](https://github.com/aws-samples/aws-cdk-examples)
 - [TypeScript CDK Workshop](https://cdkworkshop.com/20-typescript.html)
 
