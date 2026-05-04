@@ -1,224 +1,365 @@
 import * as cdk from 'aws-cdk-lib';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as lambdaNodejs from 'aws-cdk-lib/aws-lambda-nodejs';
+import * as apigateway from 'aws-cdk-lib/aws-apigateway';
+import * as logs from 'aws-cdk-lib/aws-logs';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
+import * as path from 'path';
 
 /**
  * Main stack for the Garage Backend application.
- * 
- * This stack contains all the AWS resources needed for the
- * vehicle management and workshop platform backend.
- * 
- * ## Resources
- * 
- * - **Amazon Cognito**: User authentication and authorization
- *   - User Pool for customer and workshop accounts
- *   - User Pool Client for API authentication
- * 
- * ## Planned Resources
- * 
- * The following resources will be added in future issues:
- * 
- * - **API Gateway** (Issue #5): REST API endpoints
- *   - REST API with Cognito authorization
- *   - Resource routes for vehicles, workshops, appointments
- *   - CORS configuration
- * 
- * - **AWS Lambda**: Serverless business logic handlers
- *   - Vehicle management functions
- *   - Workshop operations
- *   - Appointment scheduling
- * 
- * - **Amazon DynamoDB**: NoSQL database tables
- *   - Vehicles table
- *   - Workshops table
- *   - Appointments table
- *   - Users/profiles table
- * 
- * - **Amazon S3**: File storage
- *   - Vehicle photos and documents
- *   - Workshop images
- * 
- * - **Amazon CloudWatch**: Monitoring and logging
- *   - Lambda function logs
- *   - API Gateway access logs
- *   - Custom metrics and alarms
- * 
- * @see https://docs.aws.amazon.com/cdk/latest/guide/home.html
+ *
+ * Resources:
+ * - Amazon Cognito      — User authentication (User Pool + Client)
+ * - Amazon DynamoDB     — Single-table design for cars and events
+ * - Amazon S3           — Asset storage (photos, documents)
+ * - AWS Lambda          — One function per API endpoint (Node.js 20)
+ * - Amazon API Gateway  — REST API with Cognito JWT authorization
+ *
+ * @see docs/architecture.md
+ * @see docs/data-model.md
+ * @see docs/api.md
  */
 export class GarageBackendStack extends cdk.Stack {
-  /**
-   * Cognito User Pool for user authentication.
-   * Provides JWT tokens for API authorization.
-   */
-  public readonly userPool: cognito.UserPool;
-
-  /**
-   * Cognito User Pool Client for application access.
-   * Configured for SPA/mobile without client secret.
-   */
+  public readonly userPool:       cognito.UserPool;
   public readonly userPoolClient: cognito.UserPoolClient;
+  public readonly table:          dynamodb.Table;
+  public readonly assetsBucket:   s3.Bucket;
+  public readonly api:            apigateway.RestApi;
 
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // ========================================
-    // Amazon Cognito User Pool
-    // ========================================
-    
-    /**
-     * User Pool for managing user authentication and registration.
-     * 
-     * Features:
-     * - Email-based login (email is username)
-     * - Strong password policy (min 8 chars, uppercase, numbers)
-     * - Email verification required for new accounts
-     * - Standard attributes: email, name, preferred_username
-     * - Self-service account recovery via email
-     */
+    // ── Naming prefix ────────────────────────────────────────────────────────
+    const projectName    = this.node.tryGetContext('projectName')    ?? 'garage-backend';
+    const projectVersion = this.node.tryGetContext('projectVersion') ?? 'v1';
+    const env            = this.node.tryGetContext('environment')    ?? 'dev';
+    const prefix         = `${projectName}-${projectVersion}-${env}`;
+
+    // ========================================================================
+    // Amazon Cognito
+    // ========================================================================
+
     this.userPool = new cognito.UserPool(this, 'GarageUserPool', {
-      userPoolName: 'garage-user-pool',
-      
-      // Sign-in configuration: use email as username
-      signInAliases: {
-        email: true,
-        username: false,
-      },
-      
-      // Auto-verify email addresses
-      autoVerify: {
-        email: true,
-      },
-      
-      // Required standard attributes
+      userPoolName: `${prefix}-user-pool`,
+      signInAliases:     { email: true, username: false },
+      autoVerify:        { email: true },
       standardAttributes: {
-        email: {
-          required: true,
-          mutable: true,
-        },
-        fullName: {
-          required: false,
-          mutable: true,
-        },
-        preferredUsername: {
-          required: false,
-          mutable: true,
-        },
+        email:             { required: true,  mutable: true },
+        fullname:          { required: false, mutable: true },
+        preferredUsername: { required: false, mutable: true },
       },
-      
-      // Password policy: minimum 8 characters, require uppercase and numbers
       passwordPolicy: {
-        minLength: 8,
-        requireLowercase: true,
-        requireUppercase: true,
-        requireDigits: true,
-        requireSymbols: false,
+        minLength:            8,
+        requireLowercase:     true,
+        requireUppercase:     true,
+        requireDigits:        true,
+        requireSymbols:       false,
         tempPasswordValidity: cdk.Duration.days(3),
       },
-      
-      // Account recovery: allow users to reset password via email
-      accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
-      
-      // Self sign-up enabled for public registration
+      accountRecovery:  cognito.AccountRecovery.EMAIL_ONLY,
       selfSignUpEnabled: true,
-      
-      // Email configuration: use Cognito's default email service
-      // For production, consider using SES for better deliverability
-      email: cognito.UserPoolEmail.withCognito(),
-      
-      // Removal policy: retain the user pool if stack is deleted
-      // This prevents accidental data loss in production
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      email:            cognito.UserPoolEmail.withCognito(),
+      removalPolicy:    cdk.RemovalPolicy.RETAIN,
     });
 
-    // ========================================
-    // Cognito User Pool Client
-    // ========================================
-    
-    /**
-     * User Pool Client for frontend applications (SPA/mobile).
-     * 
-     * Configuration:
-     * - No client secret (public client for SPA/mobile apps)
-     * - USER_PASSWORD_AUTH: Direct username/password authentication
-     * - REFRESH_TOKEN_AUTH: Token refresh for staying logged in
-     * - Token validity: 1 hour for access, 24 hours for ID, 30 days for refresh
-     */
     this.userPoolClient = new cognito.UserPoolClient(this, 'GarageUserPoolClient', {
-      userPool: this.userPool,
-      userPoolClientName: 'garage-web-client',
-      
-      // No client secret for public clients (SPA/mobile)
-      generateSecret: false,
-      
-      // Enable auth flows for direct login and token refresh
+      userPool:           this.userPool,
+      userPoolClientName: `${prefix}-web-client`,
+      generateSecret:     false,
       authFlows: {
-        userPassword: true,      // USER_PASSWORD_AUTH flow
-        userSrp: true,           // SRP (Secure Remote Password) flow
-        custom: false,
+        userPassword: true,
+        userSrp:      true,
+        custom:       false,
         adminUserPassword: false,
       },
-      
-      // OAuth 2.0 flows (disabled for now, can be enabled for social login)
-      oAuth: {
-        flows: {
-          authorizationCodeGrant: false,
-          implicitCodeGrant: false,
+      oAuth: { flows: { authorizationCodeGrant: false, implicitCodeGrant: false } },
+      accessTokenValidity:  cdk.Duration.hours(1),
+      idTokenValidity:      cdk.Duration.hours(1),
+      refreshTokenValidity: cdk.Duration.days(30),
+      preventUserExistenceErrors: true,
+      enableTokenRevocation:      true,
+    });
+
+    // ========================================================================
+    // Amazon DynamoDB — single-table design
+    // ========================================================================
+
+    this.table = new dynamodb.Table(this, 'GarageTable', {
+      tableName:     `${prefix}-vehicles-table`,
+      partitionKey:  { name: 'PK', type: dynamodb.AttributeType.STRING },
+      sortKey:       { name: 'SK', type: dynamodb.AttributeType.STRING },
+      billingMode:   dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      pointInTimeRecovery: true,
+    });
+
+    // ========================================================================
+    // Amazon S3 — photos and documents
+    // ========================================================================
+
+    this.assetsBucket = new s3.Bucket(this, 'AssetsBucket', {
+      bucketName:        `${prefix}-assets-bucket`,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption:        s3.BucketEncryption.S3_MANAGED,
+      versioned:         false,
+      removalPolicy:     cdk.RemovalPolicy.RETAIN,
+      cors: [{
+        allowedMethods:  [s3.HttpMethods.GET, s3.HttpMethods.PUT],
+        allowedOrigins:  ['*'],
+        allowedHeaders:  ['*'],
+        maxAge:          3000,
+      }],
+    });
+
+    // ========================================================================
+    // Lambda shared environment & permissions
+    // ========================================================================
+
+    const lambdaEnv: Record<string, string> = {
+      TABLE_NAME:   this.table.tableName,
+      BUCKET_NAME:  this.assetsBucket.bucketName,
+      NODE_OPTIONS: '--enable-source-maps',
+    };
+
+    const lambdaDefaults: Partial<lambdaNodejs.NodejsFunctionProps> = {
+      runtime:      lambda.Runtime.NODEJS_20_X,
+      architecture: lambda.Architecture.ARM_64,
+      timeout:      cdk.Duration.seconds(10),
+      memorySize:   256,
+      environment:  lambdaEnv,
+      bundling: {
+        // AWS SDK v3 is included in Node 20 runtime — exclude from bundle
+        externalModules: ['@aws-sdk/*'],
+        minify:          true,
+        sourceMap:       true,
+      },
+    };
+
+    // ── Helper: create a NodejsFunction ──────────────────────────────────────
+
+    const fn = (id: string, entryRelative: string): lambdaNodejs.NodejsFunction => {
+      const f = new lambdaNodejs.NodejsFunction(this, id, {
+        ...lambdaDefaults,
+        entry: path.join(__dirname, '..', entryRelative),
+      });
+      // Grant DynamoDB access
+      this.table.grantReadWriteData(f);
+      // Grant S3 presigned URL generation
+      this.assetsBucket.grantReadWrite(f);
+      f.addToRolePolicy(new iam.PolicyStatement({
+        actions:   ['s3:GetObject', 's3:PutObject'],
+        resources: [`${this.assetsBucket.bucketArn}/*`],
+      }));
+      return f;
+    };
+
+    // ── Cars Lambda functions ─────────────────────────────────────────────────
+
+    const listCars   = fn('ListCars',   'lambda/cars/list.ts');
+    const createCar  = fn('CreateCar',  'lambda/cars/create.ts');
+    const getCar     = fn('GetCar',     'lambda/cars/get.ts');
+    const updateCar  = fn('UpdateCar',  'lambda/cars/update.ts');
+    const deleteCar  = fn('DeleteCar',  'lambda/cars/delete.ts');
+
+    // ── Events Lambda functions ───────────────────────────────────────────────
+
+    const listEvents   = fn('ListEvents',   'lambda/events/list.ts');
+    const createEvent  = fn('CreateEvent',  'lambda/events/create.ts');
+    const getEvent     = fn('GetEvent',     'lambda/events/get.ts');
+    const updateEvent  = fn('UpdateEvent',  'lambda/events/update.ts');
+    const deleteEvent  = fn('DeleteEvent',  'lambda/events/delete.ts');
+
+    // ========================================================================
+    // Amazon API Gateway REST API
+    // ========================================================================
+
+    const apiLogGroup = new logs.LogGroup(this, 'GarageApiLogGroup', {
+      logGroupName:  `/aws/apigateway/${prefix}-api`,
+      retention:     logs.RetentionDays.ONE_MONTH,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    this.api = new apigateway.RestApi(this, 'GarageApi', {
+      restApiName:    `${prefix}-api`,
+      description:    'Garage Backend REST API',
+      cloudWatchRole: true,
+      deployOptions: {
+        stageName:            env,
+        tracingEnabled:       true,
+        dataTraceEnabled:     false,
+        loggingLevel:         apigateway.MethodLoggingLevel.INFO,
+        accessLogDestination: new apigateway.LogGroupLogDestination(apiLogGroup),
+        accessLogFormat:      apigateway.AccessLogFormat.jsonWithStandardFields(),
+        throttlingBurstLimit: 100,
+        throttlingRateLimit:  50,
+      },
+      defaultCorsPreflightOptions: {
+        allowOrigins: apigateway.Cors.ALL_ORIGINS,
+        allowMethods: ['OPTIONS', 'GET', 'POST', 'PUT', 'DELETE'],
+        allowHeaders: [
+          'Content-Type',
+          'Authorization',
+          'X-Amz-Date',
+          'X-Api-Key',
+          'X-Amz-Security-Token',
+        ],
+      },
+    });
+
+    // ── Cognito Authorizer ────────────────────────────────────────────────────
+
+    const authorizer = new apigateway.CognitoUserPoolsAuthorizer(
+      this, 'GarageAuthorizer', {
+        cognitoUserPools:  [this.userPool],
+        authorizerName:    `${prefix}-authorizer`,
+        identitySource:    'method.request.header.Authorization',
+        resultsCacheTtl:   cdk.Duration.minutes(5),
+      },
+    );
+
+    const authOptions: apigateway.MethodOptions = {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    };
+
+    // ── Request/Response models ───────────────────────────────────────────────
+
+    const carModel = this.api.addModel('CarModel', {
+      contentType: 'application/json',
+      modelName:   'Car',
+      schema: {
+        schema:   apigateway.JsonSchemaVersion.DRAFT4,
+        type:     apigateway.JsonSchemaType.OBJECT,
+        required: ['brand', 'model', 'year'],
+        properties: {
+          brand:            { type: apigateway.JsonSchemaType.STRING },
+          model:            { type: apigateway.JsonSchemaType.STRING },
+          year:             { type: apigateway.JsonSchemaType.INTEGER },
+          registrationYear: { type: apigateway.JsonSchemaType.INTEGER },
+          totalKm:          { type: apigateway.JsonSchemaType.INTEGER },
         },
       },
-      
-      // Token validity periods
-      accessTokenValidity: cdk.Duration.hours(1),
-      idTokenValidity: cdk.Duration.hours(1),
-      refreshTokenValidity: cdk.Duration.days(30),
-      
-      // Prevent user existence errors (security best practice)
-      preventUserExistenceErrors: true,
-      
-      // Enable token revocation
-      enableTokenRevocation: true,
     });
 
-    // ========================================
+    const eventModel = this.api.addModel('EventModel', {
+      contentType: 'application/json',
+      modelName:   'Event',
+      schema: {
+        schema:   apigateway.JsonSchemaVersion.DRAFT4,
+        type:     apigateway.JsonSchemaType.OBJECT,
+        required: ['date', 'type', 'description'],
+        properties: {
+          date:        { type: apigateway.JsonSchemaType.STRING },
+          type:        { type: apigateway.JsonSchemaType.STRING, enum: ['mechanic', 'fuel', 'insurance', 'other'] },
+          description: { type: apigateway.JsonSchemaType.STRING },
+          amount:      { type: apigateway.JsonSchemaType.NUMBER },
+        },
+      },
+    });
+
+    const bodyValidator = new apigateway.RequestValidator(this, 'BodyValidator', {
+      restApi:              this.api,
+      requestValidatorName: `${prefix}-body-validator`,
+      validateRequestBody:  true,
+      validateRequestParameters: false,
+    });
+
+    // ── Integration helper ────────────────────────────────────────────────────
+
+    const integration = (f: lambda.IFunction) =>
+      new apigateway.LambdaIntegration(f, { proxy: true });
+
+    // ── /cars ─────────────────────────────────────────────────────────────────
+
+    const cars = this.api.root.addResource('cars');
+    cars.addMethod('GET',  integration(listCars),  authOptions);
+    cars.addMethod('POST', integration(createCar), {
+      ...authOptions,
+      requestValidator: bodyValidator,
+      requestModels: { 'application/json': carModel },
+    });
+
+    // ── /cars/{carId} ─────────────────────────────────────────────────────────
+
+    const car = cars.addResource('{carId}');
+    car.addMethod('GET',    integration(getCar),    authOptions);
+    car.addMethod('PUT',    integration(updateCar), {
+      ...authOptions,
+      requestValidator: bodyValidator,
+      requestModels: { 'application/json': carModel },
+    });
+    car.addMethod('DELETE', integration(deleteCar), authOptions);
+
+    // ── /cars/{carId}/events ──────────────────────────────────────────────────
+
+    const events = car.addResource('events');
+    events.addMethod('GET',  integration(listEvents),  authOptions);
+    events.addMethod('POST', integration(createEvent), {
+      ...authOptions,
+      requestValidator: bodyValidator,
+      requestModels: { 'application/json': eventModel },
+    });
+
+    // ── /cars/{carId}/events/{eventId} ────────────────────────────────────────
+
+    const eventResource = events.addResource('{eventId}');
+    eventResource.addMethod('GET',    integration(getEvent),    authOptions);
+    eventResource.addMethod('PUT',    integration(updateEvent), {
+      ...authOptions,
+      requestValidator: bodyValidator,
+      requestModels: { 'application/json': eventModel },
+    });
+    eventResource.addMethod('DELETE', integration(deleteEvent), authOptions);
+
+    // ========================================================================
     // CloudFormation Outputs
-    // ========================================
-    
-    /**
-     * Export User Pool ID for use in API Gateway authorizers
-     * and for client configuration.
-     */
+    // ========================================================================
+
     new cdk.CfnOutput(this, 'UserPoolId', {
-      value: this.userPool.userPoolId,
-      description: 'Cognito User Pool ID for authentication',
-      exportName: 'GarageUserPoolId',
+      value:       this.userPool.userPoolId,
+      description: 'Cognito User Pool ID',
+      exportName:  `${prefix}-user-pool-id`,
     });
 
-    /**
-     * Export User Pool ARN for IAM policies and resource references.
-     */
     new cdk.CfnOutput(this, 'UserPoolArn', {
-      value: this.userPool.userPoolArn,
+      value:       this.userPool.userPoolArn,
       description: 'Cognito User Pool ARN',
-      exportName: 'GarageUserPoolArn',
+      exportName:  `${prefix}-user-pool-arn`,
     });
 
-    /**
-     * Export User Pool Client ID for frontend application configuration.
-     * This is needed for the client to initiate authentication flows.
-     */
     new cdk.CfnOutput(this, 'UserPoolClientId', {
-      value: this.userPoolClient.userPoolClientId,
-      description: 'Cognito User Pool Client ID for application',
-      exportName: 'GarageUserPoolClientId',
+      value:       this.userPoolClient.userPoolClientId,
+      description: 'Cognito User Pool Client ID',
+      exportName:  `${prefix}-user-pool-client-id`,
     });
 
-    // ========================================
-    // Future Resources
-    // ========================================
-    
-    // TODO (Issue #5): Add API Gateway REST API with Cognito authorizer
-    // TODO: Add Lambda functions in lambda/ directory
-    // TODO: Add DynamoDB tables for data persistence
-    // TODO: Add S3 bucket for file storage
-    // TODO: Add CloudWatch alarms and monitoring
+    new cdk.CfnOutput(this, 'TableName', {
+      value:       this.table.tableName,
+      description: 'DynamoDB table name',
+      exportName:  `${prefix}-table-name`,
+    });
+
+    new cdk.CfnOutput(this, 'AssetsBucketName', {
+      value:       this.assetsBucket.bucketName,
+      description: 'S3 assets bucket name',
+      exportName:  `${prefix}-assets-bucket`,
+    });
+
+    new cdk.CfnOutput(this, 'ApiUrl', {
+      value:       this.api.url,
+      description: 'API Gateway base URL',
+      exportName:  `${prefix}-api-url`,
+    });
+
+    new cdk.CfnOutput(this, 'ApiLogGroupName', {
+      value:       apiLogGroup.logGroupName,
+      description: 'CloudWatch Log Group for API Gateway access logs',
+      exportName:  `${prefix}-api-log-group`,
+    });
   }
 }

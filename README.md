@@ -11,11 +11,11 @@ Garage Backend provides a serverless REST API for managing vehicles, workshops, 
 - **AWS CDK** - Infrastructure as Code framework
 - **TypeScript** - Primary programming language
 - **Amazon Cognito** - User authentication and authorization ✅
-- **API Gateway** - REST API management (planned)
-- **AWS Lambda** - Serverless compute (planned)
-- **Amazon DynamoDB** - NoSQL database (planned)
-- **Amazon S3** - File storage (planned)
-- **CloudWatch** - Logging and monitoring (planned)
+- **API Gateway** - REST API with Cognito JWT authorization ✅
+- **AWS Lambda** - Serverless compute (Node.js 20, ARM64) ✅
+- **Amazon DynamoDB** - Single-table NoSQL database ✅
+- **Amazon S3** - File storage with presigned URLs ✅
+- **CloudWatch** - Access logs and X-Ray tracing ✅
 
 ## 📁 Project Structure
 
@@ -263,6 +263,36 @@ fetch('https://api.example.com/vehicles', {
 });
 ```
 
+## 🔌 API Endpoints
+
+All endpoints require `Authorization: Bearer <access-token>` header. Requests without a valid Cognito JWT are rejected with HTTP 401.
+
+Base URL is exported as the `ApiUrl` CloudFormation output.
+
+### Cars
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/cars` | List all cars for the authenticated user |
+| POST | `/cars` | Create a new car (`brand`, `model`, `year` required) |
+| GET | `/cars/{carId}` | Get car detail |
+| PUT | `/cars/{carId}` | Update car |
+| DELETE | `/cars/{carId}` | Delete car |
+
+### Events
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/cars/{carId}/events` | List events, newest first (`?limit=300&nextToken=...`) |
+| POST | `/cars/{carId}/events` | Create event (`date`, `type`, `description` required) |
+| GET | `/cars/{carId}/events/{eventId}` | Get event detail |
+| PUT | `/cars/{carId}/events/{eventId}` | Update event |
+| DELETE | `/cars/{carId}/events/{eventId}` | Delete event |
+
+Event `type` must be one of: `mechanic`, `fuel`, `insurance`, `other`.
+
+See [`docs/api.md`](docs/api.md) for full request/response schemas.
+
 ## 🏷️ Resource Tagging
 
 All resources are automatically tagged for better organization:
@@ -288,31 +318,35 @@ These tags help with:
 - ✅ Email verification for new accounts
 - ✅ Secure token management (1h access, 30d refresh)
 - ✅ User Pool retention policy to prevent accidental data loss
+- ✅ API Gateway Cognito authorizer — all endpoints require a valid JWT
+- ✅ Request body validation via API Gateway models (400 on bad input)
 - 🔜 IAM roles with least privilege (planned)
-- 🔜 API Gateway authorization (planned)
 
 ## 📊 Current Status
 
-**Version**: 0.1.0 (Initial setup + Authentication)
+**Version**: 0.2.0 (API Gateway + Full Backend)
 
 ### ✅ Completed
 - [x] CDK project initialization
 - [x] TypeScript configuration
-- [x] Project structure
-- [x] Environment configuration
-- [x] Tagging strategy
-- [x] Documentation
+- [x] Project structure and environment configuration
 - [x] Cognito User Pool with email authentication (Issue #4)
 - [x] User Pool Client for SPA/mobile apps (Issue #4)
-- [x] Password policy and email verification (Issue #4)
-- [x] Stack outputs for User Pool ID and Client ID (Issue #4)
+- [x] API Gateway REST API with Cognito JWT authorizer (Issue #5)
+- [x] CORS enabled for OPTIONS, GET, POST, PUT, DELETE (Issue #5)
+- [x] Resource structure: /cars, /cars/{carId}, /cars/{carId}/events, /cars/{carId}/events/{eventId} (Issue #5)
+- [x] Request body validation models for Car and Event (Issue #5)
+- [x] CloudWatch access logs + X-Ray tracing (Issue #5)
+- [x] Stage-level throttling (50 rps, burst 100) (Issue #5)
+- [x] API URL exported as CloudFormation output (Issue #5)
+- [x] Lambda functions for Cars and Events CRUD (Issue #5)
+- [x] DynamoDB single-table design (Issue #5)
+- [x] S3 bucket for photos and documents (Issue #5)
 
-### 🚧 In Progress / Planned
-- [ ] API Gateway REST API (Issue #5)
-- [ ] Lambda functions
-- [ ] DynamoDB tables
-- [ ] S3 file storage
-- [ ] CloudWatch monitoring
+### 🚧 Planned
+- [ ] File upload/download presigned URL endpoints
+- [ ] CloudWatch alarms and dashboards
+- [ ] IAM roles with least privilege
 
 ## 🤝 Contributing
 
