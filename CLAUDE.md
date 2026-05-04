@@ -43,6 +43,8 @@ npm run destroy   # Tear down the stack
 | `CDK_DEFAULT_ACCOUNT` | AWS account ID (set by AWS CLI) |
 | `CDK_DEFAULT_REGION` | AWS region (set by AWS CLI) |
 | `ENVIRONMENT` | Deployment environment: `dev`, `staging`, `prod` |
+| `PROJECT_NAME` | Project name used in resource naming (default: `garage-backend`) |
+| `PROJECT_VERSION` | API version used in resource naming (default: `v1`) |
 
 ## Conventions
 
@@ -61,24 +63,31 @@ All AWS resources must follow this pattern:
 {projectName}-{version}-{environment}-{resourceName}
 ```
 
-| Segment | Values | Example |
+| Segment | CDK context key | Default |
 |---|---|---|
-| `projectName` | `garage-backend` | `garage-backend` |
-| `version` | `v1`, `v2`, … | `v1` |
-| `environment` | `dev`, `staging`, `prod` | `prod` |
-| `resourceName` | short descriptor in kebab-case | `vehicles-table`, `assets-bucket` |
+| `projectName` | `projectName` | `garage-backend` |
+| `version` | `projectVersion` | `v1` |
+| `environment` | `environment` | `dev` |
+| `resourceName` | — | short descriptor in kebab-case |
 
-**Examples:**
+**Examples** (with defaults):
 - DynamoDB table → `garage-backend-v1-prod-vehicles-table`
 - S3 bucket → `garage-backend-v1-prod-assets-bucket`
 - Lambda function → `garage-backend-v1-dev-get-vehicle`
 - Cognito User Pool → `garage-backend-v1-prod-user-pool`
 - API Gateway → `garage-backend-v1-prod-api`
 
-In CDK, derive the name from the `environment` context variable so it is consistent across stacks:
+In CDK, always derive the prefix from context so every resource stays consistent:
 
 ```typescript
+const projectName = this.node.tryGetContext("projectName") ?? "garage-backend";
+const projectVersion = this.node.tryGetContext("projectVersion") ?? "v1";
 const env = this.node.tryGetContext("environment") ?? "dev";
-const prefix = `garage-backend-v1-${env}`;
+const prefix = `${projectName}-${projectVersion}-${env}`;
 // e.g. `${prefix}-vehicles-table`
+```
+
+Override at deploy time:
+```bash
+cdk deploy -c projectName=garage-backend -c projectVersion=v2 -c environment=prod
 ```
