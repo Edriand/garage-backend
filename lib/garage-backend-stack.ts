@@ -6,7 +6,6 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as lambdaNodejs from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as logs from 'aws-cdk-lib/aws-logs';
-import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 import * as path from 'path';
 
@@ -149,10 +148,8 @@ export class GarageBackendStack extends cdk.Stack {
       memorySize:   256,
       environment:  lambdaEnv,
       bundling: {
-        // AWS SDK v3 is included in Node 20 runtime — exclude from bundle
-        externalModules: ['@aws-sdk/*'],
-        minify:          true,
-        sourceMap:       true,
+        minify:    true,
+        sourceMap: true,
       },
     };
 
@@ -163,14 +160,8 @@ export class GarageBackendStack extends cdk.Stack {
         ...lambdaDefaults,
         entry: path.join(__dirname, '..', entryRelative),
       });
-      // Grant DynamoDB access
       this.table.grantReadWriteData(f);
-      // Grant S3 presigned URL generation
       this.assetsBucket.grantReadWrite(f);
-      f.addToRolePolicy(new iam.PolicyStatement({
-        actions:   ['s3:GetObject', 's3:PutObject'],
-        resources: [`${this.assetsBucket.bucketArn}/*`],
-      }));
       return f;
     };
 
@@ -278,6 +269,36 @@ export class GarageBackendStack extends cdk.Stack {
       },
     });
 
+    const carUpdateModel = this.api.addModel('CarUpdateModel', {
+      contentType: 'application/json',
+      modelName:   'CarUpdate',
+      schema: {
+        schema: apigateway.JsonSchemaVersion.DRAFT4,
+        type:   apigateway.JsonSchemaType.OBJECT,
+        properties: {
+          brand:            { type: apigateway.JsonSchemaType.STRING },
+          model:            { type: apigateway.JsonSchemaType.STRING },
+          year:             { type: apigateway.JsonSchemaType.INTEGER },
+          registrationYear: { type: apigateway.JsonSchemaType.INTEGER },
+          totalKm:          { type: apigateway.JsonSchemaType.INTEGER },
+        },
+      },
+    });
+
+    const eventUpdateModel = this.api.addModel('EventUpdateModel', {
+      contentType: 'application/json',
+      modelName:   'EventUpdate',
+      schema: {
+        schema: apigateway.JsonSchemaVersion.DRAFT4,
+        type:   apigateway.JsonSchemaType.OBJECT,
+        properties: {
+          type:        { type: apigateway.JsonSchemaType.STRING, enum: ['mechanic', 'fuel', 'insurance', 'other'] },
+          description: { type: apigateway.JsonSchemaType.STRING },
+          amount:      { type: apigateway.JsonSchemaType.NUMBER },
+        },
+      },
+    });
+
     const bodyValidator = new apigateway.RequestValidator(this, 'BodyValidator', {
       restApi:              this.api,
       requestValidatorName: `${prefix}-body-validator`,
@@ -307,7 +328,7 @@ export class GarageBackendStack extends cdk.Stack {
     car.addMethod('PUT',    integration(updateCar), {
       ...authOptions,
       requestValidator: bodyValidator,
-      requestModels: { 'application/json': carModel },
+      requestModels: { 'application/json': carUpdateModel },
     });
     car.addMethod('DELETE', integration(deleteCar), authOptions);
 
@@ -328,7 +349,7 @@ export class GarageBackendStack extends cdk.Stack {
     eventResource.addMethod('PUT',    integration(updateEvent), {
       ...authOptions,
       requestValidator: bodyValidator,
-      requestModels: { 'application/json': eventModel },
+      requestModels: { 'application/json': eventUpdateModel },
     });
     eventResource.addMethod('DELETE', integration(deleteEvent), authOptions);
 

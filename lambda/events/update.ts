@@ -8,7 +8,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import {
-  ddb, TABLE_NAME, ok, badRequest, notFound, serverError, carKey,
+  ddb, TABLE_NAME, getUserId, ok, badRequest, notFound, serverError, carKey, assertCarOwnership,
 } from '../shared/utils';
 
 type EventType = 'mechanic' | 'fuel' | 'insurance' | 'other';
@@ -25,12 +25,15 @@ interface UpdateEventBody {
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const userId  = getUserId(event);
     const carId   = event.pathParameters?.carId;
     const eventId = event.pathParameters?.eventId;
 
     if (!carId)   return notFound('carId path parameter is required');
     if (!eventId) return notFound('eventId path parameter is required');
     if (!event.body) return badRequest('Request body is required');
+
+    if (!await assertCarOwnership(userId, carId)) return notFound('Car not found');
 
     let body: UpdateEventBody;
     try {
@@ -39,6 +42,9 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       return badRequest('Invalid JSON body');
     }
 
+    if (body.date !== undefined) {
+      return badRequest('date cannot be updated; delete and recreate the event to change its date');
+    }
     if (body.type && !VALID_TYPES.includes(body.type)) {
       return badRequest(`type must be one of: ${VALID_TYPES.join(', ')}`);
     }
@@ -53,13 +59,12 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         ':skPrefix': 'EVENT#',
         ':eventId':  eventId,
       },
-      Limit: 1,
     }));
 
     const existing = found.Items?.[0];
     if (!existing) return notFound('Event not found');
 
-    const allowedFields = ['date', 'type', 'description', 'amount', 'photoKeys', 'docKeys'] as const;
+    const allowedFields = ['type', 'description', 'amount', 'photoKeys', 'docKeys'] as const;
     const updates = allowedFields.filter(f => body[f] !== undefined);
     if (updates.length === 0) return badRequest('No valid fields to update');
 
@@ -70,7 +75,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     updates.forEach((field, i) => {
       exprNames[`#f${i}`]  = field;
-      exprValues[`:v${i}`] = field === 'date' ? new Date(body.date!).toISOString() : body[field];
+      exprValues[`:v${i}`] = body[field];
     });
 
     const result = await ddb.send(new UpdateCommand({

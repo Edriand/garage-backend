@@ -8,18 +8,20 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { QueryCommand } from '@aws-sdk/lib-dynamodb';
 import {
-  ddb, TABLE_NAME, ok, notFound, serverError, carKey,
+  ddb, TABLE_NAME, getUserId, ok, notFound, serverError, carKey, assertCarOwnership,
 } from '../shared/utils';
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const userId  = getUserId(event);
     const carId   = event.pathParameters?.carId;
     const eventId = event.pathParameters?.eventId;
 
     if (!carId)   return notFound('carId path parameter is required');
     if (!eventId) return notFound('eventId path parameter is required');
 
-    // Query all events for the car and filter by eventId
+    if (!await assertCarOwnership(userId, carId)) return notFound('Car not found');
+
     const result = await ddb.send(new QueryCommand({
       TableName:              TABLE_NAME,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :skPrefix)',
@@ -29,7 +31,6 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         ':skPrefix': 'EVENT#',
         ':eventId':  eventId,
       },
-      Limit: 1,
     }));
 
     const item = result.Items?.[0];

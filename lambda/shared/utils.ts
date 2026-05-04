@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, GetCommand } from '@aws-sdk/lib-dynamodb';
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 
 // ── DynamoDB client ───────────────────────────────────────────────────────────
@@ -73,10 +73,20 @@ export const serverError = (err: unknown): APIGatewayProxyResult => {
 
 // ── DynamoDB key helpers ──────────────────────────────────────────────────────
 
-export const userKey = (userId: string) => `USER#${userId}`;
-export const carKey  = (carId: string)  => `CAR#${carId}`;
+export const userKey  = (userId: string) => `USER#${userId}`;
+export const carKey   = (carId: string)  => `CAR#${carId}`;
 export const eventKey = (timestamp: string, eventId: string) =>
   `EVENT#${timestamp}#${eventId}`;
+
+// ── Authorization helper ──────────────────────────────────────────────────────
+
+export async function assertCarOwnership(userId: string, carId: string): Promise<boolean> {
+  const result = await ddb.send(new GetCommand({
+    TableName: TABLE_NAME,
+    Key: { PK: userKey(userId), SK: carKey(carId) },
+  }));
+  return !!result.Item;
+}
 
 // ── ID generation ─────────────────────────────────────────────────────────────
 

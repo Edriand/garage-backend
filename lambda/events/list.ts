@@ -5,15 +5,18 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { QueryCommand } from '@aws-sdk/lib-dynamodb';
 import {
-  ddb, TABLE_NAME, ok, notFound, serverError, carKey,
+  ddb, TABLE_NAME, getUserId, ok, notFound, serverError, carKey, assertCarOwnership,
 } from '../shared/utils';
 
 const PAGE_SIZE = 300;
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
-    const carId = event.pathParameters?.carId;
+    const userId = getUserId(event);
+    const carId  = event.pathParameters?.carId;
     if (!carId) return notFound('carId path parameter is required');
+
+    if (!await assertCarOwnership(userId, carId)) return notFound('Car not found');
 
     // Decode optional pagination token
     const nextTokenEncoded = event.queryStringParameters?.nextToken;
