@@ -127,7 +127,7 @@ export class GarageBackendStack extends cdk.Stack {
     };
 
     const lambdaDefaults: Partial<lambdaNodejs.NodejsFunctionProps> = {
-      runtime:      lambda.Runtime.NODEJS_20_X,
+      runtime:      lambda.Runtime.NODEJS_24_X,
       architecture: lambda.Architecture.ARM_64,
       timeout:      cdk.Duration.seconds(10),
       memorySize:   256,
