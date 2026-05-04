@@ -1,0 +1,10 @@
+# This directory will contain Lambda function handlers
+# 
+# Structure:
+# lambda/
+#   ├── vehicles/
+#   │   ├── create.ts
+#   │   ├── update.ts
+#   │   └── ...
+#   ├── workshops/
+#   └── appointments/
