@@ -28,13 +28,13 @@ Lambda Functions
 - Handlers in `lambda/{resource}/{action}.ts`
 
 ### DynamoDB
-- Single table: `garage-v1-{env}-vehicles-table`
+- Single table: `garage-backend-v1-{env}-vehicles-table`
 - Sort key on events uses ISO timestamp for native date ordering
 - GSI for querying events by date descending
 - See `data-model.md` for full schema
 
 ### S3
-- One bucket: `garage-v1-{env}-assets-bucket`
+- One bucket: `garage-backend-v1-{env}-assets-bucket`
 - Structure: `users/{userId}/cars/{carId}/photos/` and `/documents/`
 - Access via presigned URLs only — bucket is private
 

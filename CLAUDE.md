@@ -63,22 +63,22 @@ All AWS resources must follow this pattern:
 
 | Segment | Values | Example |
 |---|---|---|
-| `projectName` | `garage` | `garage` |
+| `projectName` | `garage-backend` | `garage-backend` |
 | `version` | `v1`, `v2`, … | `v1` |
 | `environment` | `dev`, `staging`, `prod` | `prod` |
 | `resourceName` | short descriptor in kebab-case | `vehicles-table`, `assets-bucket` |
 
 **Examples:**
-- DynamoDB table → `garage-v1-prod-vehicles-table`
-- S3 bucket → `garage-v1-prod-assets-bucket`
-- Lambda function → `garage-v1-dev-get-vehicle`
-- Cognito User Pool → `garage-v1-prod-user-pool`
-- API Gateway → `garage-v1-prod-api`
+- DynamoDB table → `garage-backend-v1-prod-vehicles-table`
+- S3 bucket → `garage-backend-v1-prod-assets-bucket`
+- Lambda function → `garage-backend-v1-dev-get-vehicle`
+- Cognito User Pool → `garage-backend-v1-prod-user-pool`
+- API Gateway → `garage-backend-v1-prod-api`
 
 In CDK, derive the name from the `environment` context variable so it is consistent across stacks:
 
 ```typescript
 const env = this.node.tryGetContext("environment") ?? "dev";
-const prefix = `garage-v1-${env}`;
+const prefix = `garage-backend-v1-${env}`;
 // e.g. `${prefix}-vehicles-table`
 ```
