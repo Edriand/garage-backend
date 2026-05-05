@@ -55,3 +55,17 @@ jobs:
             --stack-name GarageBackendStack \
             --query 'Stacks[0].Outputs' \
             --output table
+
+      - name: Smoke test — Cognito authorizer returns 401
+        run: |
+          API_URL=$(aws cloudformation describe-stacks \
+            --stack-name GarageBackendStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue' \
+            --output text)
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${API_URL}cars")
+          echo "GET ${API_URL}cars → HTTP $STATUS"
+          if [ "$STATUS" != "401" ]; then
+            echo "❌ Expected 401, got $STATUS — Cognito authorizer may not be active"
+            exit 1
+          fi
+          echo "✅ Cognito authorizer active"
