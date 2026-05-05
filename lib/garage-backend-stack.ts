@@ -83,7 +83,6 @@ export class GarageBackendStack extends cdk.Stack {
         custom:       false,
         adminUserPassword: false,
       },
-      oAuth: { flows: { authorizationCodeGrant: false, implicitCodeGrant: false } },
       accessTokenValidity:  cdk.Duration.hours(1),
       idTokenValidity:      cdk.Duration.hours(1),
       refreshTokenValidity: cdk.Duration.days(30),
@@ -99,6 +98,8 @@ export class GarageBackendStack extends cdk.Stack {
       'ALLOW_USER_AUTH',
       'ALLOW_REFRESH_TOKEN_AUTH',
     ]);
+    // OAuth not needed — client uses direct auth flows only
+    cfnClient.addPropertyOverride('AllowedOAuthFlowsUserPoolClient', false);
 
     // ========================================================================
     // Amazon DynamoDB — single-table design
