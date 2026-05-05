@@ -38,9 +38,10 @@ SK: EVENT#{isoTimestamp}#{eventId}   ← timestamp first for date-ordered querie
 ─────────────────────────────────────
 eventId:     string (ULID)
 date:        ISO timestamp
-type:        mechanic | fuel | insurance | other
+type:        mechanic | fuel | insurance | wash | other
 description: string
 amount:      number
+km:          number (optional — mileage at the time of the event)
 photoKeys:   string[]  (S3 keys)
 docKeys:     string[]  (S3 keys)
 createdAt:   ISO timestamp

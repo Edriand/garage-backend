@@ -9,18 +9,19 @@ import {
   carKey, eventKey, newId, assertCarOwnership,
 } from '../shared/utils';
 
-type EventType = 'mechanic' | 'fuel' | 'insurance' | 'other';
+type EventType = 'mechanic' | 'fuel' | 'insurance' | 'wash' | 'other';
 
 interface CreateEventBody {
   date:        string;
   type:        EventType;
   description: string;
   amount:      number;
+  km?:         number;
   photoKeys?:  string[];
   docKeys?:    string[];
 }
 
-const VALID_TYPES: EventType[] = ['mechanic', 'fuel', 'insurance', 'other'];
+const VALID_TYPES: EventType[] = ['mechanic', 'fuel', 'insurance', 'wash', 'other'];
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
@@ -39,7 +40,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       return badRequest('Invalid JSON body');
     }
 
-    const { date, type, description, amount, photoKeys = [], docKeys = [] } = body;
+    const { date, type, description, amount, km, photoKeys = [], docKeys = [] } = body;
 
     if (!date || !type || !description || amount === undefined) {
       return badRequest('Missing required fields: date, type, description, amount');
@@ -52,7 +53,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const isoDate  = new Date(date).toISOString();
     const now      = new Date().toISOString();
 
-    const item = {
+    const item: Record<string, unknown> = {
       PK:          carKey(carId),
       SK:          eventKey(isoDate, eventId),
       eventId,
@@ -66,6 +67,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       createdAt:   now,
       updatedAt:   now,
     };
+    if (km !== undefined) item.km = km;
 
     await ddb.send(new PutCommand({ TableName: TABLE_NAME, Item: item }));
 
@@ -76,6 +78,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       type,
       description,
       amount,
+      km:        km ?? null,
       photos:    photoKeys,
       documents: docKeys,
       createdAt: now,
