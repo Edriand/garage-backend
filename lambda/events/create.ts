@@ -48,6 +48,9 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     if (!VALID_TYPES.includes(type)) {
       return badRequest(`type must be one of: ${VALID_TYPES.join(', ')}`);
     }
+    if (km !== undefined && km < 0) {
+      return badRequest('km must be a non-negative integer');
+    }
 
     const eventId  = newId();
     const isoDate  = new Date(date).toISOString();

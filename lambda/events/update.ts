@@ -49,6 +49,9 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     if (body.type && !VALID_TYPES.includes(body.type)) {
       return badRequest(`type must be one of: ${VALID_TYPES.join(', ')}`);
     }
+    if (body.km !== undefined && body.km < 0) {
+      return badRequest('km must be a non-negative integer');
+    }
 
     // Find the existing item to get its full SK
     const found = await ddb.send(new QueryCommand({
