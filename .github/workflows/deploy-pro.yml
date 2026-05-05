@@ -14,6 +14,11 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.inputs.confirm == 'pro'
     environment: pro
+    concurrency:
+      group: deploy-pro
+      cancel-in-progress: false
+    env:
+      ENVIRONMENT: pro
 
     steps:
       - name: Checkout
