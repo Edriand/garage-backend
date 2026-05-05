@@ -17,6 +17,7 @@ type UpdateableCarFields = {
   totalKm?:          number;
   totalInvested?:    number;
   photoKey?:         string;
+  isPublic?:         boolean;
 };
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
@@ -35,7 +36,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
 
     const allowedFields: (keyof UpdateableCarFields)[] = [
-      'brand', 'model', 'year', 'registrationYear', 'totalKm', 'totalInvested', 'photoKey',
+      'brand', 'model', 'year', 'registrationYear', 'totalKm', 'totalInvested', 'photoKey', 'isPublic',
     ];
 
     const updates = allowedFields.filter(f => body[f] !== undefined);
@@ -72,6 +73,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       totalKm:          item.totalKm,
       totalInvested:    item.totalInvested,
       photoUrl:         item.photoKey ?? null,
+      isPublic:         item.isPublic ?? false,
       createdAt:        item.createdAt,
       updatedAt:        item.updatedAt,
     });

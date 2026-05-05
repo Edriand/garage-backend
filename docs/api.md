@@ -24,9 +24,40 @@ All endpoints require `Authorization: Bearer {jwt}` header.
   "registrationYear": 2020,
   "totalKm": 45000,
   "totalInvested": 3200.50,
-  "photoUrl": "string (presigned URL)"
+  "photoUrl": "string (presigned URL)",
+  "isPublic": false
 }
 ```
+
+## Garage
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/garage` | Get the authenticated user's garage settings |
+| PUT | `/garage` | Update garage settings |
+
+### Garage settings object
+
+```json
+{
+  "isPublic": false,
+  "updatedAt": "2024-03-15T10:30:00Z"
+}
+```
+
+> `GET /garage` returns `{ "isPublic": false }` for users who have never configured their garage (no `updatedAt` field in that case).
+
+### PUT /garage
+
+Request body (all fields required):
+
+```json
+{
+  "isPublic": true
+}
+```
+
+Returns `400 Bad Request` if `isPublic` is missing.
 
 ## Events
 

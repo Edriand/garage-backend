@@ -73,9 +73,10 @@ export const serverError = (err: unknown): APIGatewayProxyResult => {
 
 // ── DynamoDB key helpers ──────────────────────────────────────────────────────
 
-export const userKey  = (userId: string) => `USER#${userId}`;
-export const carKey   = (carId: string)  => `CAR#${carId}`;
-export const eventKey = (timestamp: string, eventId: string) =>
+export const userKey           = (userId: string) => `USER#${userId}`;
+export const carKey            = (carId: string)  => `CAR#${carId}`;
+export const garageSettingsKey = () => 'GARAGE_SETTINGS';
+export const eventKey          = (timestamp: string, eventId: string) =>
   `EVENT#${timestamp}#${eventId}`;
 
 // ── Authorization helper ──────────────────────────────────────────────────────

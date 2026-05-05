@@ -17,6 +17,7 @@ interface CreateCarBody {
   totalKm:          number;
   totalInvested:    number;
   photoKey?:        string;
+  isPublic?:        boolean;
 }
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
@@ -32,7 +33,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       return badRequest('Invalid JSON body');
     }
 
-    const { brand, model, year, registrationYear, totalKm, totalInvested, photoKey } = body;
+    const { brand, model, year, registrationYear, totalKm, totalInvested, photoKey, isPublic } = body;
     if (!brand || !model || !year || registrationYear === undefined || totalKm === undefined || totalInvested === undefined) {
       return badRequest('Missing required fields: brand, model, year, registrationYear, totalKm, totalInvested');
     }
@@ -52,6 +53,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       totalKm,
       totalInvested,
       photoKey,
+      isPublic:  isPublic ?? false,
       createdAt: now,
       updatedAt: now,
     };
@@ -68,6 +70,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       totalKm,
       totalInvested,
       photoUrl:  photoKey ?? null,
+      isPublic:  isPublic ?? false,
       createdAt: now,
       updatedAt: now,
     });

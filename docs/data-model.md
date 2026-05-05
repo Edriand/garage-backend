@@ -26,8 +26,19 @@ registrationYear: number
 totalKm:          number
 totalInvested:    number
 photoKey:         string (S3 key)
+isPublic:         boolean (default false)
 createdAt:        ISO timestamp
 updatedAt:        ISO timestamp
+```
+
+### Garage settings item
+
+```
+PK: USER#{userId}
+SK: GARAGE_SETTINGS
+─────────────────────────────
+isPublic:  boolean   (default false)
+updatedAt: ISO timestamp
 ```
 
 ### Event item

@@ -29,6 +29,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       totalKm:          item.totalKm,
       totalInvested:    item.totalInvested,
       photoUrl:         item.photoKey ?? null,
+      isPublic:         item.isPublic ?? false,
       createdAt:        item.createdAt,
       updatedAt:        item.updatedAt,
     }));
