@@ -7,7 +7,7 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { GetCommand } from '@aws-sdk/lib-dynamodb';
 import {
   ddb, TABLE_NAME, getUserId, ok, serverError,
-  userKey, garageSettingsKey,
+  userKey, GARAGE_SETTINGS_SK,
 } from '../shared/utils';
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
@@ -18,7 +18,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       TableName: TABLE_NAME,
       Key: {
         PK: userKey(userId),
-        SK: garageSettingsKey(),
+        SK: GARAGE_SETTINGS_SK,
       },
     }));
 

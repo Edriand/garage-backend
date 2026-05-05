@@ -4,10 +4,10 @@
  * Body: { isPublic: boolean }
  */
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { PutCommand } from '@aws-sdk/lib-dynamodb';
+import { UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import {
   ddb, TABLE_NAME, getUserId, ok, badRequest, serverError,
-  userKey, garageSettingsKey,
+  userKey, GARAGE_SETTINGS_SK,
 } from '../shared/utils';
 
 interface UpdateGarageBody {
@@ -33,14 +33,12 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     const now = new Date().toISOString();
 
-    await ddb.send(new PutCommand({
-      TableName: TABLE_NAME,
-      Item: {
-        PK:        userKey(userId),
-        SK:        garageSettingsKey(),
-        isPublic:  body.isPublic,
-        updatedAt: now,
-      },
+    await ddb.send(new UpdateCommand({
+      TableName:        TABLE_NAME,
+      Key:              { PK: userKey(userId), SK: GARAGE_SETTINGS_SK },
+      UpdateExpression: 'SET #isPublic = :isPublic, #updatedAt = :updatedAt',
+      ExpressionAttributeNames:  { '#isPublic': 'isPublic', '#updatedAt': 'updatedAt' },
+      ExpressionAttributeValues: { ':isPublic': body.isPublic, ':updatedAt': now },
     }));
 
     return ok({
