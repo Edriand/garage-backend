@@ -1,0 +1,52 @@
+name: Deploy to Pro
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "pro" to confirm deployment to production'
+        required: true
+        default: ''
+
+jobs:
+  deploy:
+    name: CDK Deploy — pro
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'pro'
+    environment: pro
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Synthesize CloudFormation template
+        run: npm run synth -- -c environment=pro
+
+      - name: Deploy to AWS
+        run: npm run deploy -- -c environment=pro --require-approval never
+
+      - name: Print CloudFormation outputs
+        run: |
+          aws cloudformation describe-stacks \
+            --stack-name GarageBackendStack \
+            --query 'Stacks[0].Outputs' \
+            --output table
