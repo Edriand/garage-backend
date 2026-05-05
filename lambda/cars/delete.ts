@@ -3,17 +3,40 @@
  * Deletes a car and all its events owned by the authenticated user.
  */
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { QueryCommand, BatchWriteCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
-import { AttributeValue } from '@aws-sdk/client-dynamodb';
+import { QueryCommand, BatchWriteCommand, DeleteCommand, NativeAttributeValue } from '@aws-sdk/lib-dynamodb';
 import {
   ddb, TABLE_NAME, getUserId, noContent, notFound, serverError,
   userKey, carKey, assertCarOwnership,
 } from '../shared/utils';
 
-const BATCH_SIZE = 25;
+const BATCH_SIZE     = 25;
+const BACKOFF_BASE   = 50;   // ms
+const BACKOFF_MAX    = 1000; // ms
+
+type DeleteRequestItem = { DeleteRequest: { Key: Record<string, NativeAttributeValue> } };
+
+async function batchDeleteWithRetry(keys: Array<{ PK: string; SK: string }>): Promise<void> {
+  let pending: DeleteRequestItem[] = keys.map(key => ({
+    DeleteRequest: { Key: key as Record<string, NativeAttributeValue> },
+  }));
+  let delay = BACKOFF_BASE;
+
+  while (pending.length > 0) {
+    const result = await ddb.send(new BatchWriteCommand({
+      RequestItems: { [TABLE_NAME]: pending },
+    }));
+
+    pending = (result.UnprocessedItems?.[TABLE_NAME] ?? []) as DeleteRequestItem[];
+
+    if (pending.length > 0) {
+      await new Promise(resolve => setTimeout(resolve, delay));
+      delay = Math.min(delay * 2, BACKOFF_MAX);
+    }
+  }
+}
 
 async function deleteAllCarEvents(carId: string): Promise<void> {
-  let exclusiveStartKey: Record<string, AttributeValue> | undefined;
+  let exclusiveStartKey: Record<string, NativeAttributeValue> | undefined;
 
   do {
     const result = await ddb.send(new QueryCommand({
@@ -24,20 +47,16 @@ async function deleteAllCarEvents(carId: string): Promise<void> {
       ExclusiveStartKey:         exclusiveStartKey,
     }));
 
-    const items = result.Items ?? [];
+    const keys = (result.Items ?? []).map(item => ({
+      PK: item.PK as string,
+      SK: item.SK as string,
+    }));
 
-    for (let i = 0; i < items.length; i += BATCH_SIZE) {
-      const chunk = items.slice(i, i + BATCH_SIZE);
-      await ddb.send(new BatchWriteCommand({
-        RequestItems: {
-          [TABLE_NAME]: chunk.map(item => ({
-            DeleteRequest: { Key: { PK: item.PK, SK: item.SK } },
-          })),
-        },
-      }));
+    for (let i = 0; i < keys.length; i += BATCH_SIZE) {
+      await batchDeleteWithRetry(keys.slice(i, i + BATCH_SIZE));
     }
 
-    exclusiveStartKey = result.LastEvaluatedKey as Record<string, AttributeValue> | undefined;
+    exclusiveStartKey = result.LastEvaluatedKey;
   } while (exclusiveStartKey);
 }
 
