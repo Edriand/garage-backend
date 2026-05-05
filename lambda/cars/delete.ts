@@ -41,7 +41,7 @@ async function deleteAllCarS3Assets(userId: string, carId: string): Promise<void
       ContinuationToken: continuationToken,
     }));
 
-    const keys = (listResult.Contents ?? []).map(obj => obj.Key!).filter(Boolean);
+    const keys = (listResult.Contents ?? []).map(obj => obj.Key!);
     await deleteS3Objects(keys);
 
     continuationToken = listResult.IsTruncated ? listResult.NextContinuationToken : undefined;
@@ -76,18 +76,11 @@ async function deleteAllCarEvents(carId: string): Promise<void> {
       TableName:                 TABLE_NAME,
       KeyConditionExpression:    'PK = :pk AND begins_with(SK, :skPrefix)',
       ExpressionAttributeValues: { ':pk': carKey(carId), ':skPrefix': 'EVENT#' },
-      ProjectionExpression:      'PK, SK, photoKeys, docKeys',
+      ProjectionExpression:      'PK, SK',
       ExclusiveStartKey:         exclusiveStartKey,
     }));
 
     const items = result.Items ?? [];
-
-    const s3Keys: string[] = [];
-    for (const item of items) {
-      s3Keys.push(...((item.photoKeys as string[]) ?? []));
-      s3Keys.push(...((item.docKeys   as string[]) ?? []));
-    }
-    await deleteS3Objects(s3Keys);
 
     const dynamoKeys = items.map(item => ({ PK: item.PK as string, SK: item.SK as string }));
     for (let i = 0; i < dynamoKeys.length; i += BATCH_SIZE) {
