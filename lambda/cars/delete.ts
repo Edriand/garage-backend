@@ -1,19 +1,34 @@
 /**
  * DELETE /cars/{carId}
- * Deletes a car and all its events owned by the authenticated user.
+ * Deletes a car, all its events, and all associated S3 assets owned by the authenticated user.
  */
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { QueryCommand, BatchWriteCommand, DeleteCommand, NativeAttributeValue } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, QueryCommand, BatchWriteCommand, DeleteCommand, NativeAttributeValue } from '@aws-sdk/lib-dynamodb';
+import { S3Client, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import {
   ddb, TABLE_NAME, getUserId, noContent, notFound, serverError,
-  userKey, carKey, assertCarOwnership,
+  userKey, carKey,
 } from '../shared/utils';
 
-const BATCH_SIZE     = 25;
-const BACKOFF_BASE   = 50;   // ms
-const BACKOFF_MAX    = 1000; // ms
+const s3 = new S3Client({});
+const BUCKET_NAME  = process.env.BUCKET_NAME!;
+const BATCH_SIZE   = 25;   // DynamoDB BatchWriteItem limit
+const S3_BATCH     = 1000; // S3 DeleteObjects limit
+const BACKOFF_BASE = 50;   // ms
+const BACKOFF_MAX  = 1000; // ms
 
 type DeleteRequestItem = { DeleteRequest: { Key: Record<string, NativeAttributeValue> } };
+
+async function deleteS3Objects(keys: string[]): Promise<void> {
+  if (keys.length === 0) return;
+  for (let i = 0; i < keys.length; i += S3_BATCH) {
+    const chunk = keys.slice(i, i + S3_BATCH);
+    await s3.send(new DeleteObjectsCommand({
+      Bucket: BUCKET_NAME,
+      Delete: { Objects: chunk.map(k => ({ Key: k })), Quiet: true },
+    }));
+  }
+}
 
 async function batchDeleteWithRetry(keys: Array<{ PK: string; SK: string }>): Promise<void> {
   let pending: DeleteRequestItem[] = keys.map(key => ({
@@ -43,17 +58,22 @@ async function deleteAllCarEvents(carId: string): Promise<void> {
       TableName:                 TABLE_NAME,
       KeyConditionExpression:    'PK = :pk AND begins_with(SK, :skPrefix)',
       ExpressionAttributeValues: { ':pk': carKey(carId), ':skPrefix': 'EVENT#' },
-      ProjectionExpression:      'PK, SK',
+      ProjectionExpression:      'PK, SK, photoKeys, docKeys',
       ExclusiveStartKey:         exclusiveStartKey,
     }));
 
-    const keys = (result.Items ?? []).map(item => ({
-      PK: item.PK as string,
-      SK: item.SK as string,
-    }));
+    const items = result.Items ?? [];
 
-    for (let i = 0; i < keys.length; i += BATCH_SIZE) {
-      await batchDeleteWithRetry(keys.slice(i, i + BATCH_SIZE));
+    const s3Keys: string[] = [];
+    for (const item of items) {
+      s3Keys.push(...((item.photoKeys as string[]) ?? []));
+      s3Keys.push(...((item.docKeys   as string[]) ?? []));
+    }
+    await deleteS3Objects(s3Keys);
+
+    const dynamoKeys = items.map(item => ({ PK: item.PK as string, SK: item.SK as string }));
+    for (let i = 0; i < dynamoKeys.length; i += BATCH_SIZE) {
+      await batchDeleteWithRetry(dynamoKeys.slice(i, i + BATCH_SIZE));
     }
 
     exclusiveStartKey = result.LastEvaluatedKey;
@@ -67,9 +87,16 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     if (!carId) return notFound('carId path parameter is required');
 
-    if (!await assertCarOwnership(userId, carId)) return notFound('Car not found');
+    const carResult = await ddb.send(new GetCommand({
+      TableName: TABLE_NAME,
+      Key:       { PK: userKey(userId), SK: carKey(carId) },
+    }));
+    if (!carResult.Item) return notFound('Car not found');
+    const carPhotoKey: string | undefined = carResult.Item.photoKey;
 
     await deleteAllCarEvents(carId);
+
+    if (carPhotoKey) await deleteS3Objects([carPhotoKey]);
 
     await ddb.send(new DeleteCommand({
       TableName: TABLE_NAME,
