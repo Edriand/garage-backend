@@ -56,6 +56,12 @@ export const badRequest = (message: string): APIGatewayProxyResult => ({
   body: JSON.stringify({ message }),
 });
 
+export const conflict = (message = 'Conflict'): APIGatewayProxyResult => ({
+  statusCode: 409,
+  headers: corsHeaders,
+  body: JSON.stringify({ message }),
+});
+
 export const notFound = (message = 'Not found'): APIGatewayProxyResult => ({
   statusCode: 404,
   headers: corsHeaders,
@@ -75,7 +81,9 @@ export const serverError = (err: unknown): APIGatewayProxyResult => {
 
 export const userKey            = (userId: string) => `USER#${userId}`;
 export const carKey             = (carId: string)  => `CAR#${carId}`;
+export const likeKey            = (userId: string) => `LIKE#${userId}`;
 export const GARAGE_SETTINGS_SK = 'GARAGE_SETTINGS';
+export const CAR_ID_INDEX       = 'carId-index';
 export const eventKey           = (timestamp: string, eventId: string) =>
   `EVENT#${timestamp}#${eventId}`;
 
