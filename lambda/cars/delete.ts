@@ -4,7 +4,7 @@
  */
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { GetCommand, QueryCommand, BatchWriteCommand, DeleteCommand, NativeAttributeValue } from '@aws-sdk/lib-dynamodb';
-import { S3Client, DeleteObjectsCommand } from '@aws-sdk/client-s3';
+import { S3Client, DeleteObjectsCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import {
   ddb, TABLE_NAME, getUserId, noContent, notFound, serverError,
   userKey, carKey,
@@ -28,6 +28,24 @@ async function deleteS3Objects(keys: string[]): Promise<void> {
       Delete: { Objects: chunk.map(k => ({ Key: k })), Quiet: true },
     }));
   }
+}
+
+async function deleteAllCarS3Assets(userId: string, carId: string): Promise<void> {
+  const prefix = `users/${userId}/cars/${carId}/`;
+  let continuationToken: string | undefined;
+
+  do {
+    const listResult = await s3.send(new ListObjectsV2Command({
+      Bucket:            BUCKET_NAME,
+      Prefix:            prefix,
+      ContinuationToken: continuationToken,
+    }));
+
+    const keys = (listResult.Contents ?? []).map(obj => obj.Key!).filter(Boolean);
+    await deleteS3Objects(keys);
+
+    continuationToken = listResult.IsTruncated ? listResult.NextContinuationToken : undefined;
+  } while (continuationToken);
 }
 
 async function batchDeleteWithRetry(keys: Array<{ PK: string; SK: string }>): Promise<void> {
@@ -92,11 +110,9 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       Key:       { PK: userKey(userId), SK: carKey(carId) },
     }));
     if (!carResult.Item) return notFound('Car not found');
-    const carPhotoKey: string | undefined = carResult.Item.photoKey;
 
     await deleteAllCarEvents(carId);
-
-    if (carPhotoKey) await deleteS3Objects([carPhotoKey]);
+    await deleteAllCarS3Assets(userId, carId);
 
     await ddb.send(new DeleteCommand({
       TableName: TABLE_NAME,
