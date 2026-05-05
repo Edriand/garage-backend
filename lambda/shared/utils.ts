@@ -82,8 +82,11 @@ export const serverError = (err: unknown): APIGatewayProxyResult => {
 export const userKey            = (userId: string) => `USER#${userId}`;
 export const carKey             = (carId: string)  => `CAR#${carId}`;
 export const likeKey            = (userId: string) => `LIKE#${userId}`;
-export const GARAGE_SETTINGS_SK = 'GARAGE_SETTINGS';
+export const GARAGE_SETTINGS_SK  = 'GARAGE_SETTINGS';
 export const CAR_ID_INDEX       = 'carId-index';
+export const PUBLIC_CARS_INDEX  = 'PublicCarsIndex';
+export const GSI1PK             = 'PUBLIC';
+export const GSI1SK             = 'GSI1SK';
 export const eventKey           = (timestamp: string, eventId: string) =>
   `EVENT#${timestamp}#${eventId}`;
 

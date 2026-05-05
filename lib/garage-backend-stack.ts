@@ -124,6 +124,14 @@ export class GarageBackendStack extends cdk.Stack {
       projectionType:  dynamodb.ProjectionType.ALL,
     });
 
+    // GSI for public cars discovery feed (sparse index - only populated when isPublic: true AND garage isPublic)
+    this.table.addGlobalSecondaryIndex({
+      indexName:       'PublicCarsIndex',
+      partitionKey:    { name: 'GSI1PK', type: dynamodb.AttributeType.STRING },
+      sortKey:         { name: 'GSI1SK', type: dynamodb.AttributeType.STRING },
+      projectionType:  dynamodb.ProjectionType.ALL,
+    });
+
     // ========================================================================
     // Amazon S3 — photos and documents
     // ========================================================================
@@ -189,8 +197,13 @@ export class GarageBackendStack extends cdk.Stack {
 
     // ── Garage Lambda functions ───────────────────────────────────────────────
 
-    const getGarage    = fn('GetGarage',    'lambda/garage/get.ts',    'get-garage');
-    const updateGarage = fn('UpdateGarage', 'lambda/garage/update.ts', 'update-garage');
+    const getGarage         = fn('GetGarage',    'lambda/garage/get.ts',    'get-garage');
+    const updateGarage      = fn('UpdateGarage', 'lambda/garage/update.ts', 'update-garage');
+
+    // ── Feed Lambda functions ────────────────────────────────────────────────
+
+    const getFeed           = fn('GetFeed',           'lambda/feed/get.ts',           'get-feed');
+    const getPublicGarage   = fn('GetPublicGarage',   'lambda/feed/get-public-garage.ts', 'get-public-garage');
 
     // ── Events Lambda functions ───────────────────────────────────────────────
 
@@ -410,6 +423,18 @@ export class GarageBackendStack extends cdk.Stack {
       requestModels: { 'application/json': eventUpdateModel },
     });
     eventResource.addMethod('DELETE', integration(deleteEvent), authOptions);
+
+    // ── /feed ────────────────────────────────────────────────────────────────
+
+    const feed = this.api.root.addResource('feed');
+    feed.addMethod('GET', integration(getFeed));
+
+    // ── /users/{userId}/garage ────────────────────────────────────────────────
+
+    const users = this.api.root.addResource('users');
+    const userId = users.addResource('{userId}');
+    const userGarage = userId.addResource('garage');
+    userGarage.addMethod('GET', integration(getPublicGarage));
 
     // ========================================================================
     // CloudFormation Outputs

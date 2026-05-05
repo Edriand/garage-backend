@@ -3,10 +3,10 @@
  * Updates a car owned by the authenticated user.
  */
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { UpdateCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
 import {
   ddb, TABLE_NAME, getUserId, ok, badRequest, notFound, serverError,
-  userKey, carKey,
+  userKey, carKey, GARAGE_SETTINGS_SK, GSI1PK, GSI1SK,
 } from '../shared/utils';
 
 type UpdateableCarFields = {
@@ -43,22 +43,58 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     if (updates.length === 0) return badRequest('No valid fields to update');
 
     const now = new Date().toISOString();
-    const setExpressions = [...updates.map((f, i) => `#f${i} = :v${i}`), '#updatedAt = :updatedAt'];
-    const exprNames:  Record<string, string> = { '#updatedAt': 'updatedAt' };
-    const exprValues: Record<string, unknown>  = { ':updatedAt': now };
+
+    const currentCar = await ddb.send(new GetCommand({
+      TableName: TABLE_NAME,
+      Key: { PK: userKey(userId), SK: carKey(carId) },
+    }));
+    if (!currentCar.Item) return notFound('Car not found');
+
+    const previousIsPublic = currentCar.Item.isPublic ?? false;
+    const garageResult = await ddb.send(new GetCommand({
+      TableName: TABLE_NAME,
+      Key: { PK: userKey(userId), SK: GARAGE_SETTINGS_SK },
+    }));
+    const garageIsPublic = garageResult.Item?.isPublic ?? false;
+    const previousEffectiveIsPublic = previousIsPublic && garageIsPublic;
+
+    const newIsPublic = body.isPublic !== undefined ? body.isPublic : previousIsPublic;
+    const newEffectiveIsPublic = newIsPublic && garageIsPublic;
+
+    const setExpressions: string[] = [];
+    const removeExpressions: string[] = [];
+    const exprNames: Record<string, string> = { '#updatedAt': 'updatedAt' };
+    const exprValues: Record<string, unknown> = { ':updatedAt': now };
 
     updates.forEach((field, i) => {
-      exprNames[`#f${i}`]  = field;
+      exprNames[`#f${i}`] = field;
       exprValues[`:v${i}`] = body[field];
+      setExpressions.push(`#f${i} = :v${i}`);
     });
+
+    if (previousEffectiveIsPublic && !newEffectiveIsPublic) {
+      removeExpressions.push(GSI1PK, GSI1SK);
+    } else if (!previousEffectiveIsPublic && newEffectiveIsPublic) {
+      setExpressions.push(`${GSI1PK} = :gsi1pk`, `${GSI1SK} = :gsi1sk`);
+      exprValues[':gsi1pk'] = GSI1PK;
+      exprValues[':gsi1sk'] = `${now}#${carId}`;
+    }
+
+    let updateExpression = '';
+    if (setExpressions.length > 0) {
+      updateExpression = `SET ${setExpressions.join(', ')}`;
+    }
+    if (removeExpressions.length > 0) {
+      updateExpression += (updateExpression ? ' REMOVE ' : 'REMOVE ') + removeExpressions.join(', ');
+    }
+    updateExpression += ', #updatedAt = :updatedAt';
 
     const result = await ddb.send(new UpdateCommand({
       TableName:                 TABLE_NAME,
       Key:                       { PK: userKey(userId), SK: carKey(carId) },
-      UpdateExpression:          `SET ${setExpressions.join(', ')}`,
+      UpdateExpression:          updateExpression,
       ExpressionAttributeNames:  exprNames,
       ExpressionAttributeValues: exprValues,
-      ConditionExpression:       'attribute_exists(PK)',
       ReturnValues:              'ALL_NEW',
     }));
 
