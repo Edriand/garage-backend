@@ -26,6 +26,22 @@ Lambda Functions
 - Node.js 20 runtime
 - One function per endpoint (single-responsibility)
 - Handlers in `lambda/{resource}/{action}.ts`
+- All functions use explicit `functionName: ${prefix}-{verb}-{resource}` — CDK must never auto-generate names
+
+**Function names (`pro` environment):**
+
+| Function | Name |
+| --- | --- |
+| List cars | `garage-backend-v1-pro-list-cars` |
+| Create car | `garage-backend-v1-pro-create-car` |
+| Get car | `garage-backend-v1-pro-get-car` |
+| Update car | `garage-backend-v1-pro-update-car` |
+| Delete car | `garage-backend-v1-pro-delete-car` |
+| List events | `garage-backend-v1-pro-list-events` |
+| Create event | `garage-backend-v1-pro-create-event` |
+| Get event | `garage-backend-v1-pro-get-event` |
+| Update event | `garage-backend-v1-pro-update-event` |
+| Delete event | `garage-backend-v1-pro-delete-event` |
 
 ### DynamoDB
 - Single table: `garage-backend-v1-{env}-vehicles-table`

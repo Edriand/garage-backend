@@ -87,6 +87,17 @@ const prefix = `${projectName}-${projectVersion}-${env}`;
 // e.g. `${prefix}-vehicles-table`
 ```
 
+**Lambda functions must always set `functionName` explicitly.** Without it, CDK generates a non-deterministic name (e.g. `GarageBackendStack-CreateCar6BAF7DD5-OfupEkxHW7rb`) that breaks naming conventions and makes resources hard to identify in AWS console.
+
+```typescript
+// Always pass functionName using the shared prefix:
+const f = new lambdaNodejs.NodejsFunction(this, id, {
+  ...lambdaDefaults,
+  functionName: `${prefix}-${name}`,   // e.g. garage-backend-v1-pro-create-car
+  entry: path.join(__dirname, '..', entryRelative),
+});
+```
+
 Override at deploy time:
 ```bash
 cdk deploy -c projectName=garage-backend -c projectVersion=v2 -c environment=prod

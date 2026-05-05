@@ -156,9 +156,10 @@ export class GarageBackendStack extends cdk.Stack {
 
     // ── Helper: create a NodejsFunction ──────────────────────────────────────
 
-    const fn = (id: string, entryRelative: string): lambdaNodejs.NodejsFunction => {
+    const fn = (id: string, entryRelative: string, name: string): lambdaNodejs.NodejsFunction => {
       const f = new lambdaNodejs.NodejsFunction(this, id, {
         ...lambdaDefaults,
+        functionName: `${prefix}-${name}`,
         entry: path.join(__dirname, '..', entryRelative),
       });
       this.table.grantReadWriteData(f);
@@ -168,19 +169,19 @@ export class GarageBackendStack extends cdk.Stack {
 
     // ── Cars Lambda functions ─────────────────────────────────────────────────
 
-    const listCars   = fn('ListCars',   'lambda/cars/list.ts');
-    const createCar  = fn('CreateCar',  'lambda/cars/create.ts');
-    const getCar     = fn('GetCar',     'lambda/cars/get.ts');
-    const updateCar  = fn('UpdateCar',  'lambda/cars/update.ts');
-    const deleteCar  = fn('DeleteCar',  'lambda/cars/delete.ts');
+    const listCars   = fn('ListCars',   'lambda/cars/list.ts',   'list-cars');
+    const createCar  = fn('CreateCar',  'lambda/cars/create.ts', 'create-car');
+    const getCar     = fn('GetCar',     'lambda/cars/get.ts',    'get-car');
+    const updateCar  = fn('UpdateCar',  'lambda/cars/update.ts', 'update-car');
+    const deleteCar  = fn('DeleteCar',  'lambda/cars/delete.ts', 'delete-car');
 
     // ── Events Lambda functions ───────────────────────────────────────────────
 
-    const listEvents   = fn('ListEvents',   'lambda/events/list.ts');
-    const createEvent  = fn('CreateEvent',  'lambda/events/create.ts');
-    const getEvent     = fn('GetEvent',     'lambda/events/get.ts');
-    const updateEvent  = fn('UpdateEvent',  'lambda/events/update.ts');
-    const deleteEvent  = fn('DeleteEvent',  'lambda/events/delete.ts');
+    const listEvents   = fn('ListEvents',   'lambda/events/list.ts',   'list-events');
+    const createEvent  = fn('CreateEvent',  'lambda/events/create.ts', 'create-event');
+    const getEvent     = fn('GetEvent',     'lambda/events/get.ts',    'get-event');
+    const updateEvent  = fn('UpdateEvent',  'lambda/events/update.ts', 'update-event');
+    const deleteEvent  = fn('DeleteEvent',  'lambda/events/delete.ts', 'delete-event');
 
     // ========================================================================
     // Amazon API Gateway REST API
