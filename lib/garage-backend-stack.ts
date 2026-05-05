@@ -175,6 +175,11 @@ export class GarageBackendStack extends cdk.Stack {
     const updateCar  = fn('UpdateCar',  'lambda/cars/update.ts', 'update-car');
     const deleteCar  = fn('DeleteCar',  'lambda/cars/delete.ts', 'delete-car');
 
+    // ── Garage Lambda functions ───────────────────────────────────────────────
+
+    const getGarage    = fn('GetGarage',    'lambda/garage/get.ts',    'get-garage');
+    const updateGarage = fn('UpdateGarage', 'lambda/garage/update.ts', 'update-garage');
+
     // ── Events Lambda functions ───────────────────────────────────────────────
 
     const listEvents   = fn('ListEvents',   'lambda/events/list.ts',   'list-events');
@@ -253,6 +258,7 @@ export class GarageBackendStack extends cdk.Stack {
           totalKm:          { type: apigateway.JsonSchemaType.INTEGER },
           totalInvested:    { type: apigateway.JsonSchemaType.NUMBER },
           photoKey:         { type: apigateway.JsonSchemaType.STRING },
+          isPublic:         { type: apigateway.JsonSchemaType.BOOLEAN },
         },
       },
     });
@@ -288,6 +294,20 @@ export class GarageBackendStack extends cdk.Stack {
           totalKm:          { type: apigateway.JsonSchemaType.INTEGER },
           totalInvested:    { type: apigateway.JsonSchemaType.NUMBER },
           photoKey:         { type: apigateway.JsonSchemaType.STRING },
+          isPublic:         { type: apigateway.JsonSchemaType.BOOLEAN },
+        },
+      },
+    });
+
+    const garageUpdateModel = this.api.addModel('GarageUpdateModel', {
+      contentType: 'application/json',
+      modelName:   'GarageUpdate',
+      schema: {
+        schema:   apigateway.JsonSchemaVersion.DRAFT4,
+        type:     apigateway.JsonSchemaType.OBJECT,
+        required: ['isPublic'],
+        properties: {
+          isPublic: { type: apigateway.JsonSchemaType.BOOLEAN },
         },
       },
     });
@@ -320,6 +340,16 @@ export class GarageBackendStack extends cdk.Stack {
 
     const integration = (f: lambda.IFunction) =>
       new apigateway.LambdaIntegration(f, { proxy: true });
+
+    // ── /garage ───────────────────────────────────────────────────────────────
+
+    const garage = this.api.root.addResource('garage');
+    garage.addMethod('GET', integration(getGarage), authOptions);
+    garage.addMethod('PUT', integration(updateGarage), {
+      ...authOptions,
+      requestValidator: bodyValidator,
+      requestModels: { 'application/json': garageUpdateModel },
+    });
 
     // ── /cars ─────────────────────────────────────────────────────────────────
 
