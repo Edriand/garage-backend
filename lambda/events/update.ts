@@ -11,14 +11,15 @@ import {
   ddb, TABLE_NAME, getUserId, ok, badRequest, notFound, serverError, carKey, assertCarOwnership,
 } from '../shared/utils';
 
-type EventType = 'mechanic' | 'fuel' | 'insurance' | 'other';
-const VALID_TYPES: EventType[] = ['mechanic', 'fuel', 'insurance', 'other'];
+type EventType = 'mechanic' | 'fuel' | 'insurance' | 'wash' | 'other';
+const VALID_TYPES: EventType[] = ['mechanic', 'fuel', 'insurance', 'wash', 'other'];
 
 interface UpdateEventBody {
   date?:        string;
   type?:        EventType;
   description?: string;
   amount?:      number;
+  km?:          number;
   photoKeys?:   string[];
   docKeys?:     string[];
 }
@@ -48,6 +49,9 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     if (body.type && !VALID_TYPES.includes(body.type)) {
       return badRequest(`type must be one of: ${VALID_TYPES.join(', ')}`);
     }
+    if (body.km !== undefined && body.km < 0) {
+      return badRequest('km must be a non-negative integer');
+    }
 
     // Find the existing item to get its full SK
     const found = await ddb.send(new QueryCommand({
@@ -64,7 +68,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const existing = found.Items?.[0];
     if (!existing) return notFound('Event not found');
 
-    const allowedFields = ['type', 'description', 'amount', 'photoKeys', 'docKeys'] as const;
+    const allowedFields = ['type', 'description', 'amount', 'km', 'photoKeys', 'docKeys'] as const;
     const updates = allowedFields.filter(f => body[f] !== undefined);
     if (updates.length === 0) return badRequest('No valid fields to update');
 
@@ -95,6 +99,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       type:        item.type,
       description: item.description,
       amount:      item.amount,
+      km:          item.km ?? null,
       photos:      item.photoKeys ?? [],
       documents:   item.docKeys   ?? [],
       createdAt:   item.createdAt,

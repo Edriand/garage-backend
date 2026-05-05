@@ -55,13 +55,17 @@ GET /cars/{carId}/events?limit=300&nextToken={token}
   "eventId": "string",
   "carId": "string",
   "date": "2024-03-15T10:30:00Z",
-  "type": "mechanic | fuel | insurance | other",
+  "type": "mechanic | fuel | insurance | wash | other",
   "description": "string",
   "amount": 350.00,
+  "km": 52000,
   "photos": ["presigned-url-1", "presigned-url-2"],
   "documents": ["presigned-url-invoice.pdf"]
 }
 ```
+
+> `km` is optional. When not provided on creation, it is returned as `null`.
+> `wash` has been added to the `type` enum to track car wash events.
 
 ## File uploads
 
