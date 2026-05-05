@@ -242,13 +242,15 @@ export class GarageBackendStack extends cdk.Stack {
       schema: {
         schema:   apigateway.JsonSchemaVersion.DRAFT4,
         type:     apigateway.JsonSchemaType.OBJECT,
-        required: ['brand', 'model', 'year'],
+        required: ['brand', 'model', 'year', 'registrationYear', 'totalKm', 'totalInvested'],
         properties: {
           brand:            { type: apigateway.JsonSchemaType.STRING },
           model:            { type: apigateway.JsonSchemaType.STRING },
           year:             { type: apigateway.JsonSchemaType.INTEGER },
           registrationYear: { type: apigateway.JsonSchemaType.INTEGER },
           totalKm:          { type: apigateway.JsonSchemaType.INTEGER },
+          totalInvested:    { type: apigateway.JsonSchemaType.NUMBER },
+          photoKey:         { type: apigateway.JsonSchemaType.STRING },
         },
       },
     });
@@ -281,6 +283,8 @@ export class GarageBackendStack extends cdk.Stack {
           year:             { type: apigateway.JsonSchemaType.INTEGER },
           registrationYear: { type: apigateway.JsonSchemaType.INTEGER },
           totalKm:          { type: apigateway.JsonSchemaType.INTEGER },
+          totalInvested:    { type: apigateway.JsonSchemaType.NUMBER },
+          photoKey:         { type: apigateway.JsonSchemaType.STRING },
         },
       },
     });
