@@ -1,11 +1,19 @@
 /**
  * POST /upload/presigned-url
  * Returns a presigned PUT URL for direct S3 upload.
+ *
+ * NOTE: File size enforcement (ContentLengthRange) is not supported with presigned
+ * PUT URLs via getSignedUrl. Enforcing max upload size would require migrating to
+ * presigned POST (PostPolicy) — tracked as technical debt.
  */
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { getUserId, ok, badRequest, serverError } from '../shared/utils';
+import { QueryCommand } from '@aws-sdk/lib-dynamodb';
+import {
+  ddb, TABLE_NAME, getUserId, ok, badRequest, notFound, serverError,
+  assertCarOwnership, carKey,
+} from '../shared/utils';
 
 const s3 = new S3Client({});
 const BUCKET_NAME = process.env.BUCKET_NAME!;
@@ -54,6 +62,25 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     if (category !== 'photo' && category !== 'document') {
       return badRequest('Invalid category. Must be "photo" or "document"');
+    }
+
+    if (!await assertCarOwnership(userId, carId)) {
+      return notFound('Car not found');
+    }
+
+    if (eventId) {
+      const eventResult = await ddb.send(new QueryCommand({
+        TableName:              TABLE_NAME,
+        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :skPrefix)',
+        FilterExpression:       'eventId = :eventId',
+        ExpressionAttributeValues: {
+          ':pk':      carKey(carId),
+          ':skPrefix': 'EVENT#',
+          ':eventId':  eventId,
+        },
+        Limit: 1,
+      }));
+      if (!eventResult.Items?.length) return notFound('Event not found');
     }
 
     const folder = category === 'photo' ? 'photos' : 'documents';

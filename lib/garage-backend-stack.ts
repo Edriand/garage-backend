@@ -384,6 +384,13 @@ export class GarageBackendStack extends cdk.Stack {
       validateRequestParameters: false,
     });
 
+    const paramValidator = new apigateway.RequestValidator(this, 'ParamValidator', {
+      restApi:              this.api,
+      requestValidatorName: `${prefix}-param-validator`,
+      validateRequestBody:  false,
+      validateRequestParameters: true,
+    });
+
     // ── Integration helper ────────────────────────────────────────────────────
 
     const integration = (f: lambda.IFunction) =>
@@ -471,7 +478,11 @@ export class GarageBackendStack extends cdk.Stack {
     // ── /download/presigned-url ───────────────────────────────────────────────
 
     const download = this.api.root.addResource('download');
-    download.addResource('presigned-url').addMethod('GET', integration(getDownloadPresignedUrl), authOptions);
+    download.addResource('presigned-url').addMethod('GET', integration(getDownloadPresignedUrl), {
+      ...authOptions,
+      requestValidator: paramValidator,
+      requestParameters: { 'method.request.querystring.fileKey': true },
+    });
 
     // ========================================================================
     // CloudFormation Outputs
