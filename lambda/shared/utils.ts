@@ -68,6 +68,12 @@ export const notFound = (message = 'Not found'): APIGatewayProxyResult => ({
   body: JSON.stringify({ message }),
 });
 
+export const forbidden = (message = 'Forbidden'): APIGatewayProxyResult => ({
+  statusCode: 403,
+  headers: corsHeaders,
+  body: JSON.stringify({ message }),
+});
+
 export const serverError = (err: unknown): APIGatewayProxyResult => {
   console.error(err);
   return {

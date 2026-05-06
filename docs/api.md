@@ -102,12 +102,70 @@ GET /cars/{carId}/events?limit=300&nextToken={token}
 
 | Method | Path | Description |
 |---|---|---|
-| POST | `/upload/presigned-url` | Get presigned URL to upload a file |
-| GET | `/download/presigned-url` | Get presigned URL to download a file |
+| POST | `/upload/presigned-url` | Get presigned PUT URL to upload a file directly to S3 |
+| GET | `/download/presigned-url` | Get presigned GET URL to download a file from S3 |
 
 ### Upload flow
 
-1. Client calls `POST /upload/presigned-url` with `{ carId, eventId, filename, contentType }`
-2. API returns `{ uploadUrl, fileKey }`
-3. Client PUTs the file directly to S3 using `uploadUrl`
-4. Client saves `fileKey` when creating/updating the event
+1. Client calls `POST /upload/presigned-url` with the body below
+2. API returns `{ uploadUrl, fileKey, expiresIn: 300 }`
+3. Client PUTs the file directly to S3 using `uploadUrl` (URL expires in **5 minutes**)
+4. Client saves `fileKey` in `photoKey` / `photoKeys` / `docKeys` when creating or updating a car or event
+
+### POST /upload/presigned-url
+
+Request body:
+
+```json
+{
+  "carId":       "string",
+  "eventId":     "string (optional — omit for car-level files)",
+  "filename":    "string",
+  "contentType": "image/jpeg | image/png | image/webp | application/pdf",
+  "category":    "photo | document"
+}
+```
+
+Response:
+
+```json
+{
+  "uploadUrl": "https://s3.amazonaws.com/...",
+  "fileKey":   "users/{userId}/cars/{carId}/...",
+  "expiresIn": 300
+}
+```
+
+Validation errors (`400 Bad Request`):
+- `filename` contains `..` or `/` (path traversal)
+- `contentType` is not one of the allowed values
+- Any required field is missing
+
+### GET /download/presigned-url
+
+Query parameters:
+
+| Param | Required | Description |
+|---|---|---|
+| `fileKey` | yes | The S3 key returned by the upload endpoint |
+
+Response:
+
+```json
+{
+  "downloadUrl": "https://s3.amazonaws.com/...",
+  "expiresIn":   3600
+}
+```
+
+Returns `403 Forbidden` if `fileKey` does not start with `users/{userId}/` (cross-user access attempt).
+The presigned URL expires in **1 hour**.
+
+### S3 key convention
+
+```
+users/{userId}/cars/{carId}/photos/{filename}
+users/{userId}/cars/{carId}/documents/{filename}
+users/{userId}/cars/{carId}/events/{eventId}/photos/{filename}
+users/{userId}/cars/{carId}/events/{eventId}/documents/{filename}
+```
