@@ -59,6 +59,44 @@ Request body (all fields required):
 
 Returns `400 Bad Request` if `isPublic` is missing.
 
+## Car Summary
+
+| Method | Path                    | Description                        |
+|--------|-------------------------|------------------------------------|
+| GET    | `/cars/{carId}/summary` | Get aggregate statistics for a car |
+
+### GET /cars/{carId}/summary
+
+Returns statistics computed from all events for the car. Pagination is handled internally — the response always contains the complete aggregate regardless of event count.
+
+**Response:**
+
+```json
+{
+  "totalKm":       52000,
+  "totalCost":     4800.50,
+  "eventCount":    42,
+  "byType": {
+    "mechanic":    3200.00,
+    "fuel":        1100.50,
+    "wash":         120.00,
+    "insurance":    380.00,
+    "other":          0.00
+  },
+  "lastKmReading": 52000
+}
+```
+
+| Field            | Description                                                                          |
+|------------------|--------------------------------------------------------------------------------------|
+| `totalKm`        | From the car item (`car.totalKm`, user-maintained)                                   |
+| `totalCost`      | Sum of `amount` across all events                                                    |
+| `byType`         | Sum of `amount` grouped by event type; all five keys always present (`0.00` if none) |
+| `lastKmReading`  | `km` from the most recent event that has one; `null` if no event has `km`            |
+| `eventCount`     | Total number of events for the car                                                   |
+
+Returns `404 Not Found` if the car does not exist or does not belong to the authenticated user.
+
 ## Events
 
 | Method | Path | Description |

@@ -188,13 +188,14 @@ export class GarageBackendStack extends cdk.Stack {
 
     // ── Cars Lambda functions ─────────────────────────────────────────────────
 
-    const listCars   = fn('ListCars',   'lambda/cars/list.ts',   'list-cars');
-    const createCar  = fn('CreateCar',  'lambda/cars/create.ts', 'create-car');
-    const getCar     = fn('GetCar',     'lambda/cars/get.ts',    'get-car');
-    const updateCar  = fn('UpdateCar',  'lambda/cars/update.ts', 'update-car');
-    const deleteCar  = fn('DeleteCar',  'lambda/cars/delete.ts', 'delete-car');
-    const postLike   = fn('PostLike',   'lambda/cars/like.ts',   'post-like');
-    const deleteLike = fn('DeleteLike', 'lambda/cars/unlike.ts', 'delete-like');
+    const listCars      = fn('ListCars',      'lambda/cars/list.ts',    'list-cars');
+    const createCar     = fn('CreateCar',     'lambda/cars/create.ts',  'create-car');
+    const getCar        = fn('GetCar',        'lambda/cars/get.ts',     'get-car');
+    const updateCar     = fn('UpdateCar',     'lambda/cars/update.ts',  'update-car');
+    const deleteCar     = fn('DeleteCar',     'lambda/cars/delete.ts',  'delete-car');
+    const getCarSummary = fn('GetCarSummary', 'lambda/cars/summary.ts', 'get-car-summary');
+    const postLike      = fn('PostLike',      'lambda/cars/like.ts',    'post-like');
+    const deleteLike    = fn('DeleteLike',    'lambda/cars/unlike.ts',  'delete-like');
 
     // ── Garage Lambda functions ───────────────────────────────────────────────
 
@@ -426,6 +427,11 @@ export class GarageBackendStack extends cdk.Stack {
       requestModels: { 'application/json': carUpdateModel },
     });
     car.addMethod('DELETE', integration(deleteCar), authOptions);
+
+    // ── /cars/{carId}/summary ─────────────────────────────────────────────────
+
+    const summary = car.addResource('summary');
+    summary.addMethod('GET', integration(getCarSummary), authOptions);
 
     // ── /cars/{carId}/like ────────────────────────────────────────────────────
 
