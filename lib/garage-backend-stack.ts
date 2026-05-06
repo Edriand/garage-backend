@@ -132,6 +132,7 @@ export class GarageBackendStack extends cdk.Stack {
       projectionType:  dynamodb.ProjectionType.ALL,
     });
 
+
     // ========================================================================
     // Amazon S3 — photos and documents
     // ========================================================================
