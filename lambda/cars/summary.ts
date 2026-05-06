@@ -46,6 +46,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
           ':pk':       carKey(carId),
           ':skPrefix': 'EVENT#',
         },
+        ProjectionExpression:    '#t, amount, km',
+        ExpressionAttributeNames: { '#t': 'type' },
         ScanIndexForward:  false,
         ExclusiveStartKey: lastEvaluatedKey as Record<string, import('@aws-sdk/client-dynamodb').AttributeValue>,
       }));

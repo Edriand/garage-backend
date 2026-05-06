@@ -29,36 +29,6 @@ All endpoints require `Authorization: Bearer {jwt}` header.
 }
 ```
 
-## Garage
-
-| Method | Path | Description |
-|---|---|---|
-| GET | `/garage` | Get the authenticated user's garage settings |
-| PUT | `/garage` | Update garage settings |
-
-### Garage settings object
-
-```json
-{
-  "isPublic": false,
-  "updatedAt": "2024-03-15T10:30:00Z"
-}
-```
-
-> `GET /garage` returns `{ "isPublic": false }` for users who have never configured their garage (no `updatedAt` field in that case).
-
-### PUT /garage
-
-Request body (all fields required):
-
-```json
-{
-  "isPublic": true
-}
-```
-
-Returns `400 Bad Request` if `isPublic` is missing.
-
 ## Car Summary
 
 | Method | Path                    | Description                        |
@@ -96,6 +66,36 @@ Returns statistics computed from all events for the car. Pagination is handled i
 | `eventCount`     | Total number of events for the car                                                   |
 
 Returns `404 Not Found` if the car does not exist or does not belong to the authenticated user.
+
+## Garage
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/garage` | Get the authenticated user's garage settings |
+| PUT | `/garage` | Update garage settings |
+
+### Garage settings object
+
+```json
+{
+  "isPublic": false,
+  "updatedAt": "2024-03-15T10:30:00Z"
+}
+```
+
+> `GET /garage` returns `{ "isPublic": false }` for users who have never configured their garage (no `updatedAt` field in that case).
+
+### PUT /garage
+
+Request body (all fields required):
+
+```json
+{
+  "isPublic": true
+}
+```
+
+Returns `400 Bad Request` if `isPublic` is missing.
 
 ## Events
 
