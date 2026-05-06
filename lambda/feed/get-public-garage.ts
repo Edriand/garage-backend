@@ -8,7 +8,7 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { GetCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import {
   ddb, TABLE_NAME, ok, notFound, serverError,
-  userKey, GARAGE_SETTINGS_SK, carKey, PUBLIC_CARS_INDEX, GSI1PK,
+  userKey, GARAGE_SETTINGS_SK, carKey,
 } from '../shared/utils';
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
@@ -25,15 +25,20 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       return notFound('Garage not found or is private');
     }
 
+    // Query the base table for this user's cars and filter by isPublic.
+    // The PublicCarsIndex GSI is not used here because all public cars share the
+    // same partition key ('PUBLIC'), so DynamoDB applies Limit before FilterExpression —
+    // if there are 50+ public cars from other users ahead in the index, this user's
+    // cars would never be returned.
     const carsResult = await ddb.send(new QueryCommand({
       TableName: TABLE_NAME,
-      IndexName: PUBLIC_CARS_INDEX,
-      KeyConditionExpression: '#gsi1pk = :pk',
-      FilterExpression: 'userId = :userId',
-      ExpressionAttributeNames: { '#gsi1pk': GSI1PK },
-      ExpressionAttributeValues: { ':pk': 'PUBLIC', ':userId': userId },
-      ScanIndexForward: false,
-      Limit: 50,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :skPrefix)',
+      FilterExpression: 'isPublic = :true',
+      ExpressionAttributeValues: {
+        ':pk':       userKey(userId),
+        ':skPrefix': carKey(''),
+        ':true':     true,
+      },
     }));
 
     const cars = (carsResult.Items ?? []).map((item) => ({

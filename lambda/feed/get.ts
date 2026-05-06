@@ -13,7 +13,6 @@ import {
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
     const params = event.queryStringParameters ?? {};
-    const sort = params.sort === 'likes' ? 'likes' : 'latest';
     const limit = Math.min(parseInt(params.limit ?? '20') || 20, 50);
     const nextToken = params.nextToken;
 

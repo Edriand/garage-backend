@@ -80,14 +80,13 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       exprValues[':gsi1sk'] = `${now}#${carId}`;
     }
 
-    let updateExpression = '';
-    if (setExpressions.length > 0) {
-      updateExpression = `SET ${setExpressions.join(', ')}`;
-    }
+    // updatedAt always goes in SET, never in REMOVE
+    setExpressions.push('#updatedAt = :updatedAt');
+
+    let updateExpression = `SET ${setExpressions.join(', ')}`;
     if (removeExpressions.length > 0) {
-      updateExpression += (updateExpression ? ' REMOVE ' : 'REMOVE ') + removeExpressions.join(', ');
+      updateExpression += ` REMOVE ${removeExpressions.join(', ')}`;
     }
-    updateExpression += ', #updatedAt = :updatedAt';
 
     const result = await ddb.send(new UpdateCommand({
       TableName:                 TABLE_NAME,
@@ -95,6 +94,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       UpdateExpression:          updateExpression,
       ExpressionAttributeNames:  exprNames,
       ExpressionAttributeValues: exprValues,
+      ConditionExpression:       'attribute_exists(PK)',
       ReturnValues:              'ALL_NEW',
     }));
 
