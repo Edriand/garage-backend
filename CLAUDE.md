@@ -102,3 +102,27 @@ Override at deploy time:
 ```bash
 cdk deploy -c projectName=garage-backend -c projectVersion=v2 -c environment=prod
 ```
+
+## Known CDK constraints
+
+### DynamoDB: one GSI per CloudFormation update
+
+DynamoDB only allows one GSI creation or deletion per CloudFormation update. When adding multiple GSIs, deploy them in separate sequential `cdk deploy` runs.
+
+**Example — adding two GSIs (`carId-index` and `PublicCarsIndex`):**
+
+Step 1 — temporarily comment out `PublicCarsIndex` in `lib/garage-backend-stack.ts` (do **not** commit this change), then deploy:
+
+```bash
+npm run deploy -- -c environment=pro
+```
+
+Wait for `UPDATE_COMPLETE` before proceeding.
+
+Step 2 — restore `PublicCarsIndex` (revert the comment), then deploy again:
+
+```bash
+npm run deploy -- -c environment=pro
+```
+
+The final committed code must contain all GSI definitions — the sequential split is only at the deployment level, never in the source.
