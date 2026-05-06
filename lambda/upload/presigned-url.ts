@@ -78,7 +78,6 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
           ':skPrefix': 'EVENT#',
           ':eventId':  eventId,
         },
-        Limit: 1,
       }));
       if (!eventResult.Items?.length) return notFound('Event not found');
     }
