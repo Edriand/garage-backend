@@ -214,6 +214,11 @@ export class GarageBackendStack extends cdk.Stack {
     const updateEvent  = fn('UpdateEvent',  'lambda/events/update.ts', 'update-event');
     const deleteEvent  = fn('DeleteEvent',  'lambda/events/delete.ts', 'delete-event');
 
+    // ── Upload / Download Lambda functions ───────────────────────────────────
+
+    const postUploadPresignedUrl  = fn('PostUploadPresignedUrl',  'lambda/upload/presigned-url.ts',   'upload-presigned-url');
+    const getDownloadPresignedUrl = fn('GetDownloadPresignedUrl', 'lambda/download/presigned-url.ts', 'download-presigned-url');
+
     // ========================================================================
     // Amazon API Gateway REST API
     // ========================================================================
@@ -355,11 +360,35 @@ export class GarageBackendStack extends cdk.Stack {
       },
     });
 
+    const uploadPresignedUrlModel = this.api.addModel('UploadPresignedUrlModel', {
+      contentType: 'application/json',
+      modelName:   'UploadPresignedUrl',
+      schema: {
+        schema:   apigateway.JsonSchemaVersion.DRAFT4,
+        type:     apigateway.JsonSchemaType.OBJECT,
+        required: ['carId', 'filename', 'contentType', 'category'],
+        properties: {
+          carId:       { type: apigateway.JsonSchemaType.STRING },
+          eventId:     { type: apigateway.JsonSchemaType.STRING },
+          filename:    { type: apigateway.JsonSchemaType.STRING },
+          contentType: { type: apigateway.JsonSchemaType.STRING },
+          category:    { type: apigateway.JsonSchemaType.STRING, enum: ['photo', 'document'] },
+        },
+      },
+    });
+
     const bodyValidator = new apigateway.RequestValidator(this, 'BodyValidator', {
       restApi:              this.api,
       requestValidatorName: `${prefix}-body-validator`,
       validateRequestBody:  true,
       validateRequestParameters: false,
+    });
+
+    const paramValidator = new apigateway.RequestValidator(this, 'ParamValidator', {
+      restApi:              this.api,
+      requestValidatorName: `${prefix}-param-validator`,
+      validateRequestBody:  false,
+      validateRequestParameters: true,
     });
 
     // ── Integration helper ────────────────────────────────────────────────────
@@ -436,6 +465,24 @@ export class GarageBackendStack extends cdk.Stack {
     const userId = users.addResource('{userId}');
     const userGarage = userId.addResource('garage');
     userGarage.addMethod('GET', integration(getPublicGarage));
+
+    // ── /upload/presigned-url ─────────────────────────────────────────────────
+
+    const upload = this.api.root.addResource('upload');
+    upload.addResource('presigned-url').addMethod('POST', integration(postUploadPresignedUrl), {
+      ...authOptions,
+      requestValidator: bodyValidator,
+      requestModels: { 'application/json': uploadPresignedUrlModel },
+    });
+
+    // ── /download/presigned-url ───────────────────────────────────────────────
+
+    const download = this.api.root.addResource('download');
+    download.addResource('presigned-url').addMethod('GET', integration(getDownloadPresignedUrl), {
+      ...authOptions,
+      requestValidator: paramValidator,
+      requestParameters: { 'method.request.querystring.fileKey': true },
+    });
 
     // ========================================================================
     // CloudFormation Outputs
