@@ -111,7 +111,7 @@ DynamoDB only allows one GSI creation or deletion per CloudFormation update. Whe
 
 **Example — adding two GSIs (`carId-index` and `PublicCarsIndex`):**
 
-Step 1 — add only the first GSI and deploy:
+Step 1 — temporarily comment out `PublicCarsIndex` in `lib/garage-backend-stack.ts` (do **not** commit this change), then deploy:
 
 ```bash
 npm run deploy -- -c environment=pro
@@ -119,7 +119,8 @@ npm run deploy -- -c environment=pro
 
 Wait for `UPDATE_COMPLETE` before proceeding.
 
-Step 2 — add the second GSI and deploy again:
+Step 2 — restore `PublicCarsIndex` (revert the comment), then deploy again:
+
 ```bash
 npm run deploy -- -c environment=pro
 ```
