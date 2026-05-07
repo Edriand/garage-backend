@@ -36,7 +36,7 @@ export class GarageBackendStack extends cdk.Stack {
     // ── Naming prefix ────────────────────────────────────────────────────────
     const projectName    = this.node.tryGetContext('projectName')    ?? 'garage-backend';
     const projectVersion = this.node.tryGetContext('projectVersion') ?? 'v1';
-    const env            = this.node.tryGetContext('environment')    ?? 'dev';
+    const env            = this.node.tryGetContext('environment')    ?? 'pro';
     const prefix         = `${projectName}-${projectVersion}-${env}`;
 
     // ========================================================================
