@@ -43,7 +43,7 @@ export class GarageBackendStack extends cdk.Stack {
     // Amazon Cognito
     // ========================================================================
 
-    this.userPool = new cognito.UserPool(this, 'GarageUserPool', {
+    this.userPool = new cognito.UserPool(this, 'GarageUserPoolPro', {
       userPoolName: `${prefix}-user-pool`,
       signInAliases:     { email: true, username: false },
       autoVerify:        { email: true },
@@ -62,7 +62,12 @@ export class GarageBackendStack extends cdk.Stack {
       },
       accountRecovery:  cognito.AccountRecovery.EMAIL_ONLY,
       selfSignUpEnabled: true,
-      email:            cognito.UserPoolEmail.withCognito(),
+      email: cognito.UserPoolEmail.withSES({
+        sesRegion:  'eu-west-1',
+        fromEmail:  'no-reply@fudex.es',
+        fromName:   'Ruta Mecánica',
+        replyTo:    'no-reply@fudex.es',
+      }),
       removalPolicy:    cdk.RemovalPolicy.RETAIN,
       featurePlan:  cognito.FeaturePlan.ESSENTIALS,
       signInPolicy: {
@@ -73,7 +78,7 @@ export class GarageBackendStack extends cdk.Stack {
       },
     });
 
-    this.userPoolClient = new cognito.UserPoolClient(this, 'GarageUserPoolClient', {
+    this.userPoolClient = new cognito.UserPoolClient(this, 'GarageUserPoolClientPro', {
       userPool:           this.userPool,
       userPoolClientName: `${prefix}-web-client`,
       generateSecret:     false,
