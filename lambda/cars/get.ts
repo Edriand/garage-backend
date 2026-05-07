@@ -6,7 +6,7 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { GetCommand } from '@aws-sdk/lib-dynamodb';
 import {
   ddb, TABLE_NAME, getUserId, ok, notFound, serverError,
-  userKey, carKey,
+  userKey, carKey, likeKey,
 } from '../shared/utils';
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
@@ -27,6 +27,15 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     if (!result.Item) return notFound('Car not found');
 
     const item = result.Item;
+
+    // Check if the authenticated user has already liked this car
+    const likeResult = await ddb.send(new GetCommand({
+      TableName:            TABLE_NAME,
+      Key:                  { PK: carKey(carId), SK: likeKey(userId) },
+      ProjectionExpression: 'userId',
+    }));
+    const isLiked = likeResult.Item != null;
+
     return ok({
       carId:            item.carId,
       userId:           item.userId,
@@ -39,6 +48,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       photoUrl:         item.photoKey ?? null,
       isPublic:         item.isPublic ?? false,
       likeCount:        item.likeCount ?? 0,
+      isLiked,
       createdAt:        item.createdAt,
       updatedAt:        item.updatedAt,
     });
