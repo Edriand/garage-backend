@@ -71,9 +71,11 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     });
 
     if (previousEffectiveIsPublic && !newEffectiveIsPublic) {
-      removeExpressions.push(GSI1PK, GSI1SK);
+      exprNames['#gsi1pk'] = GSI1PK;
+      removeExpressions.push('#gsi1pk', GSI1SK);
     } else if (!previousEffectiveIsPublic && newEffectiveIsPublic) {
-      setExpressions.push(`${GSI1PK} = :gsi1pk`, `${GSI1SK} = :gsi1sk`);
+      exprNames['#gsi1pk'] = GSI1PK;
+      setExpressions.push(`#gsi1pk = :gsi1pk`, `${GSI1SK} = :gsi1sk`);
       exprValues[':gsi1pk'] = GSI1PK;
       exprValues[':gsi1sk'] = `${now}#${carId}`;
     }
