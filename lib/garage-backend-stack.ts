@@ -309,7 +309,7 @@ export class GarageBackendStack extends cdk.Stack {
         required: ['date', 'type', 'description'],
         properties: {
           date:        { type: apigateway.JsonSchemaType.STRING },
-          type:        { type: apigateway.JsonSchemaType.STRING, enum: ['mechanic', 'fuel', 'insurance', 'wash', 'other'] },
+          type:        { type: apigateway.JsonSchemaType.STRING, enum: ['mechanic', 'fuel', 'insurance', 'wash', 'modification', 'purchase', 'other'] },
           description: { type: apigateway.JsonSchemaType.STRING },
           amount:      { type: apigateway.JsonSchemaType.NUMBER },
           km:          { type: apigateway.JsonSchemaType.INTEGER },
@@ -356,7 +356,7 @@ export class GarageBackendStack extends cdk.Stack {
         schema: apigateway.JsonSchemaVersion.DRAFT4,
         type:   apigateway.JsonSchemaType.OBJECT,
         properties: {
-          type:        { type: apigateway.JsonSchemaType.STRING, enum: ['mechanic', 'fuel', 'insurance', 'wash', 'other'] },
+          type:        { type: apigateway.JsonSchemaType.STRING, enum: ['mechanic', 'fuel', 'insurance', 'wash', 'modification', 'purchase', 'other'] },
           description: { type: apigateway.JsonSchemaType.STRING },
           amount:      { type: apigateway.JsonSchemaType.NUMBER },
           km:          { type: apigateway.JsonSchemaType.INTEGER },

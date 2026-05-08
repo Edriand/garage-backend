@@ -32,7 +32,7 @@ All endpoints require `Authorization: Bearer {jwt}` header.
 ## Car Summary
 
 | Method | Path                    | Description                        |
-|--------|-------------------------|------------------------------------|
+|--------|-------------------------|------------------------------------| 
 | GET    | `/cars/{carId}/summary` | Get aggregate statistics for a car |
 
 ### GET /cars/{carId}/summary
@@ -124,7 +124,7 @@ GET /cars/{carId}/events?limit=300&nextToken={token}
   "eventId": "string",
   "carId": "string",
   "date": "2024-03-15T10:30:00Z",
-  "type": "mechanic | fuel | insurance | wash | other",
+  "type": "mechanic | fuel | insurance | wash | modification | purchase | other",
   "description": "string",
   "amount": 350.00,
   "km": 52000,
@@ -134,7 +134,16 @@ GET /cars/{carId}/events?limit=300&nextToken={token}
 ```
 
 > `km` is optional. When not provided on creation, it is returned as `null`.
-> `wash` has been added to the `type` enum to track car wash events.
+
+### Event types
+
+- **`mechanic`** — maintenance and repair costs
+- **`fuel`** — fuel purchases
+- **`insurance`** — insurance premiums
+- **`wash`** — car wash and detailing
+- **`modification`** — modifications and upgrades (bodywork, engine, interior, etc.)
+- **`purchase`** — the car acquisition cost. A car may have **at most one purchase event**. Attempting to create a second purchase event returns `409 Conflict`. Cannot be changed to a different type once created.
+- **`other`** — miscellaneous expenses
 
 ## File uploads
 

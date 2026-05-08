@@ -3,13 +3,13 @@
  * Creates a new maintenance/fuel/insurance event for a car.
  */
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { PutCommand } from '@aws-sdk/lib-dynamodb';
+import { PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import {
-  ddb, TABLE_NAME, getUserId, created, badRequest, notFound, serverError,
+  ddb, TABLE_NAME, getUserId, created, badRequest, notFound, serverError, conflict,
   carKey, eventKey, newId, assertCarOwnership,
 } from '../shared/utils';
 
-type EventType = 'mechanic' | 'fuel' | 'insurance' | 'wash' | 'other';
+type EventType = 'mechanic' | 'fuel' | 'insurance' | 'wash' | 'modification' | 'purchase' | 'other';
 
 interface CreateEventBody {
   date:        string;
@@ -21,7 +21,7 @@ interface CreateEventBody {
   docKeys?:    string[];
 }
 
-const VALID_TYPES: EventType[] = ['mechanic', 'fuel', 'insurance', 'wash', 'other'];
+const VALID_TYPES: EventType[] = ['mechanic', 'fuel', 'insurance', 'wash', 'modification', 'purchase', 'other'];
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
@@ -50,6 +50,25 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
     if (km !== undefined && km < 0) {
       return badRequest('km must be a non-negative integer');
+    }
+
+    // Check if this is a purchase event and enforce one purchase per car
+    if (type === 'purchase') {
+      const existing = await ddb.send(new QueryCommand({
+        TableName:              TABLE_NAME,
+        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :skPrefix)',
+        FilterExpression:       '#type = :purchase',
+        ExpressionAttributeNames: { '#type': 'type' },
+        ExpressionAttributeValues: {
+          ':pk':       carKey(carId),
+          ':skPrefix': 'EVENT#',
+          ':purchase': 'purchase',
+        },
+        Select: 'COUNT',
+      }));
+      if ((existing.Count ?? 0) > 0) {
+        return conflict('This car already has a purchase event');
+      }
     }
 
     const eventId  = newId();
