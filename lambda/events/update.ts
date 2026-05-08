@@ -70,7 +70,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     // Validate monotonic km increase when km is being updated
     if (body.km !== undefined) {
-      let maxKm = 0;
+      let maxKm = -1; // -1 = no other events with km found
       let lastKey: Record<string, unknown> | undefined;
       do {
         const kmQuery = await ddb.send(new QueryCommand({
@@ -91,7 +91,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         lastKey = kmQuery.LastEvaluatedKey as Record<string, unknown> | undefined;
       } while (lastKey);
 
-      if (body.km <= maxKm) {
+      if (maxKm >= 0 && body.km <= maxKm) {
         return badRequest(`km must be greater than the current maximum of other events (${maxKm} km)`);
       }
     }
