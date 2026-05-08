@@ -306,7 +306,7 @@ export class GarageBackendStack extends cdk.Stack {
       schema: {
         schema:   apigateway.JsonSchemaVersion.DRAFT4,
         type:     apigateway.JsonSchemaType.OBJECT,
-        required: ['date', 'type', 'description'],
+        required: ['date', 'type', 'description', 'amount', 'km'],
         properties: {
           date:        { type: apigateway.JsonSchemaType.STRING },
           type:        { type: apigateway.JsonSchemaType.STRING, enum: ['mechanic', 'fuel', 'insurance', 'wash', 'modification', 'purchase', 'other'] },

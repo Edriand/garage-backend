@@ -49,7 +49,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     if (body.type && !VALID_TYPES.includes(body.type)) {
       return badRequest(`type must be one of: ${VALID_TYPES.join(', ')}`);
     }
-    if (body.km !== undefined && body.km < 0) {
+    if (body.km !== undefined && (!Number.isInteger(body.km) || body.km < 0)) {
       return badRequest('km must be a non-negative integer');
     }
 
@@ -67,6 +67,34 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     const existing = found.Items?.[0];
     if (!existing) return notFound('Event not found');
+
+    // Validate monotonic km increase when km is being updated
+    if (body.km !== undefined) {
+      let maxKm = -1; // -1 = no other events with km found
+      let lastKey: Record<string, unknown> | undefined;
+      do {
+        const kmQuery = await ddb.send(new QueryCommand({
+          TableName:              TABLE_NAME,
+          KeyConditionExpression: 'PK = :pk AND begins_with(SK, :skPrefix)',
+          FilterExpression:       'eventId <> :eventId',
+          ExpressionAttributeValues: {
+            ':pk':       carKey(carId),
+            ':skPrefix': 'EVENT#',
+            ':eventId':  eventId,
+          },
+          ProjectionExpression: 'km',
+          ExclusiveStartKey:    lastKey,
+        }));
+        for (const item of kmQuery.Items ?? []) {
+          if (typeof item.km === 'number' && item.km > maxKm) maxKm = item.km;
+        }
+        lastKey = kmQuery.LastEvaluatedKey as Record<string, unknown> | undefined;
+      } while (lastKey);
+
+      if (maxKm >= 0 && body.km <= maxKm) {
+        return badRequest(`km must be greater than the current maximum of other events (${maxKm} km)`);
+      }
+    }
 
     // Disallow changing type away from 'purchase'
     if (existing.type === 'purchase' && body.type !== undefined && body.type !== 'purchase') {
