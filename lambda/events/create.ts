@@ -16,7 +16,7 @@ interface CreateEventBody {
   type:        EventType;
   description: string;
   amount:      number;
-  km?:         number;
+  km:          number;
   photoKeys?:  string[];
   docKeys?:    string[];
 }
@@ -42,14 +42,35 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     const { date, type, description, amount, km, photoKeys = [], docKeys = [] } = body;
 
-    if (!date || !type || !description || amount === undefined) {
-      return badRequest('Missing required fields: date, type, description, amount');
+    if (!date || !type || !description || amount === undefined || km === undefined) {
+      return badRequest('Missing required fields: date, type, description, amount, km');
     }
     if (!VALID_TYPES.includes(type)) {
       return badRequest(`type must be one of: ${VALID_TYPES.join(', ')}`);
     }
-    if (km !== undefined && km < 0) {
+    if (!Number.isInteger(km) || km < 0) {
       return badRequest('km must be a non-negative integer');
+    }
+
+    // Validate monotonic km increase across all existing events
+    let maxKm = 0;
+    let lastKey: Record<string, unknown> | undefined;
+    do {
+      const kmQuery = await ddb.send(new QueryCommand({
+        TableName:              TABLE_NAME,
+        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :skPrefix)',
+        ExpressionAttributeValues: { ':pk': carKey(carId), ':skPrefix': 'EVENT#' },
+        ProjectionExpression:   'km',
+        ExclusiveStartKey:      lastKey,
+      }));
+      for (const item of kmQuery.Items ?? []) {
+        if (typeof item.km === 'number' && item.km > maxKm) maxKm = item.km;
+      }
+      lastKey = kmQuery.LastEvaluatedKey as Record<string, unknown> | undefined;
+    } while (lastKey);
+
+    if (km <= maxKm) {
+      return badRequest(`km must be greater than the current maximum (${maxKm} km)`);
     }
 
     // Check if this is a purchase event and enforce one purchase per car
@@ -84,12 +105,12 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       type,
       description,
       amount,
+      km,
       photoKeys,
       docKeys,
       createdAt:   now,
       updatedAt:   now,
     };
-    if (km !== undefined) item.km = km;
 
     await ddb.send(new PutCommand({ TableName: TABLE_NAME, Item: item }));
 
@@ -100,7 +121,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       type,
       description,
       amount,
-      km:        km ?? null,
+      km,
       photos:    photoKeys,
       documents: docKeys,
       createdAt: now,

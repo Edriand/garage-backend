@@ -64,7 +64,7 @@ date:        ISO timestamp
 type:        mechanic | fuel | insurance | wash | modification | purchase | other
 description: string
 amount:      number
-km:          number (optional — mileage at the time of the event)
+km:          number (required — odometer reading at the time of the event)
 photoKeys:   string[]  (S3 keys)
 docKeys:     string[]  (S3 keys)
 createdAt:   ISO timestamp
@@ -72,6 +72,8 @@ updatedAt:   ISO timestamp
 ```
 
 > **Important:** A car may have **at most one event** of type `purchase`. Attempting to create a second purchase event returns `409 Conflict`.
+
+> **km validation:** `km` must be strictly greater than the highest `km` value recorded in any previous event for this car. A car's odometer never goes backwards. A car with zero events accepts any non-negative `km`.
 
 ### Like item
 

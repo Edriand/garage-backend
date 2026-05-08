@@ -133,7 +133,7 @@ GET /cars/{carId}/events?limit=300&nextToken={token}
 }
 ```
 
-> `km` is optional. When not provided on creation, it is returned as `null`.
+> `km` is **required** on creation. It must be strictly greater than the highest `km` recorded in any previous event for the same car. A car with zero events accepts any non-negative value.
 
 ### Event types
 
