@@ -8,7 +8,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import {
-  ddb, TABLE_NAME, getUserId, ok, badRequest, notFound, serverError, carKey, assertCarOwnership,
+  ddb, TABLE_NAME, getUserId, ok, badRequest, notFound, serverError, conflict, carKey, assertCarOwnership,
 } from '../shared/utils';
 
 type EventType = 'mechanic' | 'fuel' | 'insurance' | 'wash' | 'modification' | 'purchase' | 'other';
@@ -68,9 +68,28 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const existing = found.Items?.[0];
     if (!existing) return notFound('Event not found');
 
-    // If the event is already of type 'purchase', disallow changing its type
+    // Disallow changing type away from 'purchase'
     if (existing.type === 'purchase' && body.type !== undefined && body.type !== 'purchase') {
       return badRequest('Cannot change the type of a purchase event');
+    }
+
+    // Disallow changing type to 'purchase' if the car already has one
+    if (body.type === 'purchase' && existing.type !== 'purchase') {
+      const existingPurchase = await ddb.send(new QueryCommand({
+        TableName:              TABLE_NAME,
+        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :skPrefix)',
+        FilterExpression:       '#type = :purchase',
+        ExpressionAttributeNames: { '#type': 'type' },
+        ExpressionAttributeValues: {
+          ':pk':       carKey(carId),
+          ':skPrefix': 'EVENT#',
+          ':purchase': 'purchase',
+        },
+        Select: 'COUNT',
+      }));
+      if ((existingPurchase.Count ?? 0) > 0) {
+        return conflict('This car already has a purchase event');
+      }
     }
 
     const allowedFields = ['type', 'description', 'amount', 'km', 'photoKeys', 'docKeys'] as const;
