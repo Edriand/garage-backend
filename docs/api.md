@@ -148,6 +148,50 @@ GET /cars/{carId}/events?limit=300&nextToken={token}
 - **`purchase`** — the car acquisition cost. A car may have **at most one purchase event**. Attempting to create a second purchase event returns `409 Conflict`. Cannot be changed to a different type once created.
 - **`other`** — miscellaneous expenses
 
+## Users (public)
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/users/{userId}/garage` | Get another user's public garage profile |
+| GET | `/users/{userId}/cars` | List public cars for a user's public garage |
+
+### GET /users/{userId}/cars
+
+**No authentication required.**
+
+Returns the list of cars belonging to `userId` that are publicly visible (car `isPublic: true`) and whose garage is public (`garage isPublic: true`).
+
+If the garage is private or the user does not exist, returns `404` (does not reveal whether the user exists).
+
+**Response:**
+
+```json
+{
+  "garage": {
+    "isPublic": true
+  },
+  "cars": [
+    {
+      "carId":     "string",
+      "userId":    "string",
+      "brand":     "string",
+      "model":     "string",
+      "year":      2020,
+      "likeCount": 12,
+      "photoUrl":  "string (S3 key — use GET /download/presigned-url to get a signed URL)"
+    }
+  ]
+}
+```
+
+> `photoUrl` is the raw S3 key. Call `GET /download/presigned-url?fileKey={photoUrl}` to get a time-limited download URL.
+
+**Error responses:**
+
+| Status | Condition |
+|---|---|
+| `404 Not Found` | Garage is private, or user does not exist |
+
 ## File uploads
 
 | Method | Path | Description |
