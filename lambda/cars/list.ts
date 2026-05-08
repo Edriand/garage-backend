@@ -26,8 +26,6 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       model:            item.model,
       year:             item.year,
       registrationYear: item.registrationYear,
-      totalKm:          item.totalKm,
-      totalInvested:    item.totalInvested,
       photoUrl:         item.photoKey ?? null,
       isPublic:         item.isPublic ?? false,
       likeCount:        item.likeCount ?? 0,
