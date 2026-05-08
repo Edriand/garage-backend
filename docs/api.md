@@ -22,12 +22,12 @@ All endpoints require `Authorization: Bearer {jwt}` header.
   "model": "string",
   "year": 2020,
   "registrationYear": 2020,
-  "totalKm": 45000,
-  "totalInvested": 3200.50,
   "photoUrl": "string (presigned URL)",
   "isPublic": false
 }
 ```
+
+> `totalKm` and `totalInvested` are not stored on the car. The car's current km is always derived from the most recent event. Use `GET /cars/{carId}/summary` to obtain computed totals.
 
 ## Car Summary
 
@@ -43,27 +43,30 @@ Returns statistics computed from all events for the car. Pagination is handled i
 
 ```json
 {
-  "totalKm":       52000,
-  "totalCost":     4800.50,
-  "eventCount":    42,
+  "currentKm":        52000,
+  "purchaseCost":     15000.00,
+  "totalRunningCost": 4800.50,
+  "totalCost":        19800.50,
+  "eventCount":       42,
   "byType": {
-    "mechanic":    3200.00,
-    "fuel":        1100.50,
-    "wash":         120.00,
-    "insurance":    380.00,
-    "other":          0.00
-  },
-  "lastKmReading": 52000
+    "mechanic":       3200.00,
+    "fuel":           1100.50,
+    "wash":            120.00,
+    "insurance":       380.00,
+    "modification":      0.00,
+    "other":             0.00
+  }
 }
 ```
 
-| Field            | Description                                                                          |
-|------------------|--------------------------------------------------------------------------------------|
-| `totalKm`        | From the car item (`car.totalKm`, user-maintained)                                   |
-| `totalCost`      | Sum of `amount` across all events                                                    |
-| `byType`         | Sum of `amount` grouped by event type; all five keys always present (`0.00` if none) |
-| `lastKmReading`  | `km` from the most recent event that has one; `null` if no event has `km`            |
-| `eventCount`     | Total number of events for the car                                                   |
+| Field              | Description                                                                                     |
+|--------------------|-------------------------------------------------------------------------------------------------|
+| `currentKm`        | `km` of the most recent event (by `date`); `null` if the car has no events                     |
+| `purchaseCost`     | `amount` of the purchase event; `0` if no purchase event exists                                 |
+| `totalRunningCost` | Sum of `amount` across all non-purchase events                                                  |
+| `totalCost`        | `purchaseCost + totalRunningCost`                                                               |
+| `byType`           | Sum of `amount` grouped by non-purchase event type; all six keys always present (`0.00` if none)|
+| `eventCount`       | Total number of events for the car (including purchase)                                          |
 
 Returns `404 Not Found` if the car does not exist or does not belong to the authenticated user.
 

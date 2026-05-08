@@ -9,7 +9,7 @@ import {
   userKey, carKey,
 } from '../shared/utils';
 
-type EventType = 'mechanic' | 'fuel' | 'wash' | 'insurance' | 'other';
+type EventType = 'mechanic' | 'fuel' | 'wash' | 'insurance' | 'modification' | 'other';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -19,24 +19,22 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const carId  = event.pathParameters?.carId;
     if (!carId) return notFound('carId path parameter is required');
 
-    // Single read — ownership check + totalKm in one call
     const carResult = await ddb.send(new GetCommand({
       TableName: TABLE_NAME,
       Key: { PK: userKey(userId), SK: carKey(carId) },
     }));
     if (!carResult.Item) return notFound('Car not found');
 
-    const totalKm: number = carResult.Item.totalKm ?? 0;
+    let purchaseCost     = 0;
+    let totalRunningCost = 0;
+    let eventCount       = 0;
+    let currentKm: number | null = null;
+    let latestDate: string | null = null;
 
-    // Aggregate all events with internal pagination (caller never sees tokens)
-    let totalCost = 0;
-    let eventCount = 0;
-    let lastKmReading: number | null = null;
     const byType: Record<EventType, number> = {
-      mechanic: 0, fuel: 0, wash: 0, insurance: 0, other: 0,
+      mechanic: 0, fuel: 0, wash: 0, insurance: 0, modification: 0, other: 0,
     };
 
-    // Descending order so the first event with km is already the most recent
     let lastEvaluatedKey: Record<string, unknown> | undefined;
     do {
       const result = await ddb.send(new QueryCommand({
@@ -46,26 +44,33 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
           ':pk':       carKey(carId),
           ':skPrefix': 'EVENT#',
         },
-        ProjectionExpression:    '#t, amount, km',
-        ExpressionAttributeNames: { '#t': 'type' },
-        ScanIndexForward:  false,
+        ProjectionExpression:     '#t, amount, km, #d',
+        ExpressionAttributeNames: { '#t': 'type', '#d': 'date' },
         ExclusiveStartKey: lastEvaluatedKey as Record<string, import('@aws-sdk/client-dynamodb').AttributeValue>,
       }));
 
       for (const item of result.Items ?? []) {
         eventCount++;
         const amount: number = item.amount ?? 0;
-        totalCost += amount;
+        const itemDate: string | undefined = item.date;
 
-        const t = item.type as EventType;
-        if (t in byType) {
-          byType[t] += amount;
+        if (item.type === 'purchase') {
+          purchaseCost += amount;
         } else {
-          byType.other += amount;
+          totalRunningCost += amount;
+          const t = item.type as EventType;
+          if (t in byType) {
+            byType[t] += amount;
+          } else {
+            byType.other += amount;
+          }
         }
 
-        if (item.km != null && lastKmReading === null) {
-          lastKmReading = item.km as number;
+        if (item.km != null && itemDate != null) {
+          if (latestDate === null || itemDate > latestDate) {
+            latestDate = itemDate;
+            currentKm  = item.km as number;
+          }
         }
       }
 
@@ -73,17 +78,19 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     } while (lastEvaluatedKey);
 
     return ok({
-      totalKm,
-      totalCost:    round2(totalCost),
-      eventCount,
+      currentKm,
+      purchaseCost:     round2(purchaseCost),
+      totalRunningCost: round2(totalRunningCost),
+      totalCost:        round2(purchaseCost + totalRunningCost),
       byType: {
-        mechanic:  round2(byType.mechanic),
-        fuel:      round2(byType.fuel),
-        wash:      round2(byType.wash),
-        insurance: round2(byType.insurance),
-        other:     round2(byType.other),
+        mechanic:     round2(byType.mechanic),
+        fuel:         round2(byType.fuel),
+        wash:         round2(byType.wash),
+        insurance:    round2(byType.insurance),
+        modification: round2(byType.modification),
+        other:        round2(byType.other),
       },
-      lastKmReading,
+      eventCount,
     });
   } catch (err) {
     return serverError(err);

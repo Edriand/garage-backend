@@ -34,14 +34,14 @@ brand:            string
 model:            string
 year:             number
 registrationYear: number
-totalKm:          number
-totalInvested:    number
 photoKey:         string (S3 key)
 isPublic:         boolean (default false)
 likeCount:        number  (default 0, maintained atomically)
 createdAt:        ISO timestamp
 updatedAt:        ISO timestamp
 ```
+
+> **Note:** `totalKm` and `totalInvested` are not stored on the car item. The car's current km is always the `km` value of the most recent event (by date). Total cost is computed from events by the summary endpoint.
 
 ### Garage settings item
 
