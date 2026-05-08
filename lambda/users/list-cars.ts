@@ -39,6 +39,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         ':skPrefix': carKey(''),
         ':true':     true,
       },
+      Limit: 300,
     }));
 
     const cars = (carsResult.Items ?? []).map((item) => ({
