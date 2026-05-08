@@ -1,18 +1,15 @@
 name: Deploy to Pro
 
 on:
+  push:
+    branches:
+      - pro
   workflow_dispatch:
-    inputs:
-      confirm:
-        description: 'Type "pro" to confirm deployment to production'
-        required: true
-        default: ''
 
 jobs:
   deploy:
     name: CDK Deploy — pro
     runs-on: ubuntu-latest
-    if: github.event.inputs.confirm == 'pro'
     environment: pro
     concurrency:
       group: deploy-pro
