@@ -212,6 +212,10 @@ export class GarageBackendStack extends cdk.Stack {
     const getFeed           = fn('GetFeed',           'lambda/feed/get.ts',           'get-feed');
     const getPublicGarage   = fn('GetPublicGarage',   'lambda/feed/get-public-garage.ts', 'get-public-garage');
 
+    // ── Users Lambda functions ───────────────────────────────────────────────
+
+    const getUserCars       = fn('GetUserCars',       'lambda/users/list-cars.ts',    'get-user-cars');
+
     // ── Events Lambda functions ───────────────────────────────────────────────
 
     const listEvents   = fn('ListEvents',   'lambda/events/list.ts',   'list-events');
@@ -472,6 +476,11 @@ export class GarageBackendStack extends cdk.Stack {
     const userId = users.addResource('{userId}');
     const userGarage = userId.addResource('garage');
     userGarage.addMethod('GET', integration(getPublicGarage));
+
+    // ── /users/{userId}/cars ──────────────────────────────────────────────────
+
+    const userCars = userId.addResource('cars');
+    userCars.addMethod('GET', integration(getUserCars));
 
     // ── /upload/presigned-url ─────────────────────────────────────────────────
 
