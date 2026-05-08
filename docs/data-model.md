@@ -61,7 +61,7 @@ SK: EVENT#{isoTimestamp}#{eventId}   ← timestamp first for date-ordered querie
 ─────────────────────────────────────
 eventId:     string (ULID)
 date:        ISO timestamp
-type:        mechanic | fuel | insurance | wash | other
+type:        mechanic | fuel | insurance | wash | modification | purchase | other
 description: string
 amount:      number
 km:          number (optional — mileage at the time of the event)
@@ -70,6 +70,8 @@ docKeys:     string[]  (S3 keys)
 createdAt:   ISO timestamp
 updatedAt:   ISO timestamp
 ```
+
+**Note on `purchase` type:** A car may have at most one event of type `purchase`. Attempting to create a second one returns `409 Conflict`.
 
 ### Like item
 

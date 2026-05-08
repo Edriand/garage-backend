@@ -11,8 +11,8 @@ import {
   ddb, TABLE_NAME, getUserId, ok, badRequest, notFound, serverError, carKey, assertCarOwnership,
 } from '../shared/utils';
 
-type EventType = 'mechanic' | 'fuel' | 'insurance' | 'wash' | 'other';
-const VALID_TYPES: EventType[] = ['mechanic', 'fuel', 'insurance', 'wash', 'other'];
+type EventType = 'mechanic' | 'fuel' | 'insurance' | 'wash' | 'modification' | 'purchase' | 'other';
+const VALID_TYPES: EventType[] = ['mechanic', 'fuel', 'insurance', 'wash', 'modification', 'purchase', 'other'];
 
 interface UpdateEventBody {
   date?:        string;
@@ -67,6 +67,11 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     const existing = found.Items?.[0];
     if (!existing) return notFound('Event not found');
+
+    // If the event is of type 'purchase', disallow changing its type
+    if (existing.type === 'purchase' && body.type !== undefined && body.type !== 'purchase') {
+      return badRequest('Cannot change the type of a purchase event');
+    }
 
     const allowedFields = ['type', 'description', 'amount', 'km', 'photoKeys', 'docKeys'] as const;
     const updates = allowedFields.filter(f => body[f] !== undefined);
