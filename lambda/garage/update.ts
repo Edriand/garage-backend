@@ -39,6 +39,9 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const attrValues: Record<string, unknown> = { ':isPublic': body.isPublic, ':updatedAt': now };
 
     if (body.photoKey !== undefined) {
+      if (body.photoKey !== null && !body.photoKey.startsWith(`users/${userId}/profile/`)) {
+        return badRequest('Invalid photoKey: must reference your own profile photo');
+      }
       exprParts.push('#photoKey = :photoKey');
       attrNames['#photoKey']  = 'photoKey';
       attrValues[':photoKey'] = body.photoKey;
@@ -54,7 +57,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     return ok({
       isPublic:  body.isPublic,
-      photoKey:  body.photoKey ?? null,
+      ...(body.photoKey !== undefined && { photoKey: body.photoKey }),
       updatedAt: now,
     });
   } catch (err) {
