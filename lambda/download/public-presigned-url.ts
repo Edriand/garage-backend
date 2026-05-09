@@ -14,9 +14,10 @@ import {
 
 const s3 = new S3Client({});
 const BUCKET_NAME = process.env.BUCKET_NAME!;
+const PRESIGNED_URL_TTL_SECONDS = 3600;
 
-// Matches: users/{userId}/cars/{carId}/...
-const FILE_KEY_RE = /^users\/([^/]+)\/cars\/([^/]+)\//;
+// Matches: users/{userId}/cars/{carId}/<filename>.<allowed-ext>
+const FILE_KEY_RE = /^users\/([^/]+)\/cars\/([^/]+)\/.+\.(jpe?g|png|webp|gif)$/i;
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
@@ -43,9 +44,9 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     if (!carResult.Item?.isPublic)    return forbidden('Access denied');
 
     const command = new GetObjectCommand({ Bucket: BUCKET_NAME, Key: fileKey });
-    const downloadUrl = await getSignedUrl(s3, command, { expiresIn: 3600 });
+    const downloadUrl = await getSignedUrl(s3, command, { expiresIn: PRESIGNED_URL_TTL_SECONDS });
 
-    return ok({ downloadUrl, expiresIn: 3600 });
+    return ok({ downloadUrl, expiresIn: PRESIGNED_URL_TTL_SECONDS });
   } catch (err) {
     return serverError(err);
   }

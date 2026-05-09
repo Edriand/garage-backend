@@ -226,9 +226,17 @@ export class GarageBackendStack extends cdk.Stack {
 
     // ── Upload / Download Lambda functions ───────────────────────────────────
 
-    const postUploadPresignedUrl       = fn('PostUploadPresignedUrl',       'lambda/upload/presigned-url.ts',          'upload-presigned-url');
-    const getDownloadPresignedUrl      = fn('GetDownloadPresignedUrl',      'lambda/download/presigned-url.ts',        'download-presigned-url');
-    const getPublicDownloadPresignedUrl = fn('GetPublicDownloadPresignedUrl', 'lambda/download/public-presigned-url.ts', 'public-download-presigned-url');
+    const postUploadPresignedUrl  = fn('PostUploadPresignedUrl',  'lambda/upload/presigned-url.ts',   'upload-presigned-url');
+    const getDownloadPresignedUrl = fn('GetDownloadPresignedUrl', 'lambda/download/presigned-url.ts', 'download-presigned-url');
+
+    // Public lambda: read-only on both table and bucket (no auth, least privilege)
+    const getPublicDownloadPresignedUrl = new lambdaNodejs.NodejsFunction(this, 'GetPublicDownloadPresignedUrl', {
+      ...lambdaDefaults,
+      functionName: `${prefix}-public-download-presigned-url`,
+      entry: path.join(__dirname, '..', 'lambda/download/public-presigned-url.ts'),
+    });
+    this.table.grantReadData(getPublicDownloadPresignedUrl);
+    this.assetsBucket.grantRead(getPublicDownloadPresignedUrl);
 
     // ========================================================================
     // Amazon API Gateway REST API
