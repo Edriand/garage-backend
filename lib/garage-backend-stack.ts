@@ -226,8 +226,9 @@ export class GarageBackendStack extends cdk.Stack {
 
     // ── Upload / Download Lambda functions ───────────────────────────────────
 
-    const postUploadPresignedUrl  = fn('PostUploadPresignedUrl',  'lambda/upload/presigned-url.ts',   'upload-presigned-url');
-    const getDownloadPresignedUrl = fn('GetDownloadPresignedUrl', 'lambda/download/presigned-url.ts', 'download-presigned-url');
+    const postUploadPresignedUrl       = fn('PostUploadPresignedUrl',       'lambda/upload/presigned-url.ts',          'upload-presigned-url');
+    const getDownloadPresignedUrl      = fn('GetDownloadPresignedUrl',      'lambda/download/presigned-url.ts',        'download-presigned-url');
+    const getPublicDownloadPresignedUrl = fn('GetPublicDownloadPresignedUrl', 'lambda/download/public-presigned-url.ts', 'public-download-presigned-url');
 
     // ========================================================================
     // Amazon API Gateway REST API
@@ -496,6 +497,15 @@ export class GarageBackendStack extends cdk.Stack {
     const download = this.api.root.addResource('download');
     download.addResource('presigned-url').addMethod('GET', integration(getDownloadPresignedUrl), {
       ...authOptions,
+      requestValidator: paramValidator,
+      requestParameters: { 'method.request.querystring.fileKey': true },
+    });
+
+    // ── /public/download/presigned-url ────────────────────────────────────────
+
+    const publicResource = this.api.root.addResource('public');
+    const publicDownload = publicResource.addResource('download');
+    publicDownload.addResource('presigned-url').addMethod('GET', integration(getPublicDownloadPresignedUrl), {
       requestValidator: paramValidator,
       requestParameters: { 'method.request.querystring.fileKey': true },
     });
