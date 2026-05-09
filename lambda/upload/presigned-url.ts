@@ -25,12 +25,14 @@ const ALLOWED_CONTENT_TYPES = new Set([
   'application/pdf',
 ]);
 
+const AVATAR_CONTENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
 interface UploadPresignedUrlBody {
-  carId:       string;
+  carId?:      string;
   eventId?:    string;
   filename:    string;
   contentType: string;
-  category:    'photo' | 'document';
+  category:    'photo' | 'document' | 'avatar';
 }
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
@@ -48,20 +50,35 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     const { carId, eventId, filename, contentType, category } = body;
 
-    if (!carId || !filename || !contentType || !category) {
-      return badRequest('Missing required fields: carId, filename, contentType, category');
+    if (!filename || !contentType || !category) {
+      return badRequest('Missing required fields: filename, contentType, category');
     }
 
     if (filename.includes('..') || filename.includes('/')) {
       return badRequest('Invalid filename: must not contain ".." or "/"');
     }
 
-    if (!ALLOWED_CONTENT_TYPES.has(contentType)) {
-      return badRequest(`Invalid contentType. Allowed: ${[...ALLOWED_CONTENT_TYPES].join(', ')}`);
+    if (category !== 'photo' && category !== 'document' && category !== 'avatar') {
+      return badRequest('Invalid category. Must be "photo", "document", or "avatar"');
     }
 
-    if (category !== 'photo' && category !== 'document') {
-      return badRequest('Invalid category. Must be "photo" or "document"');
+    if (category === 'avatar') {
+      if (!AVATAR_CONTENT_TYPES.has(contentType)) {
+        return badRequest(`Invalid contentType for avatar. Allowed: ${[...AVATAR_CONTENT_TYPES].join(', ')}`);
+      }
+
+      const fileKey = `users/${userId}/profile/${filename}`;
+      const command = new PutObjectCommand({ Bucket: BUCKET_NAME, Key: fileKey, ContentType: contentType });
+      const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 300 });
+      return ok({ uploadUrl, fileKey, expiresIn: 300 });
+    }
+
+    if (!carId) {
+      return badRequest('carId is required for photo and document uploads');
+    }
+
+    if (!ALLOWED_CONTENT_TYPES.has(contentType)) {
+      return badRequest(`Invalid contentType. Allowed: ${[...ALLOWED_CONTENT_TYPES].join(', ')}`);
     }
 
     if (!await assertCarOwnership(userId, carId)) {
@@ -87,12 +104,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       ? `users/${userId}/cars/${carId}/events/${eventId}/${folder}/${filename}`
       : `users/${userId}/cars/${carId}/${folder}/${filename}`;
 
-    const command = new PutObjectCommand({
-      Bucket:      BUCKET_NAME,
-      Key:         fileKey,
-      ContentType: contentType,
-    });
-
+    const command = new PutObjectCommand({ Bucket: BUCKET_NAME, Key: fileKey, ContentType: contentType });
     const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 300 });
 
     return ok({ uploadUrl, fileKey, expiresIn: 300 });

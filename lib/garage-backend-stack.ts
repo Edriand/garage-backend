@@ -354,6 +354,7 @@ export class GarageBackendStack extends cdk.Stack {
         required: ['isPublic'],
         properties: {
           isPublic: { type: apigateway.JsonSchemaType.BOOLEAN },
+          photoKey: { type: apigateway.JsonSchemaType.STRING },
         },
       },
     });
@@ -381,13 +382,13 @@ export class GarageBackendStack extends cdk.Stack {
       schema: {
         schema:   apigateway.JsonSchemaVersion.DRAFT4,
         type:     apigateway.JsonSchemaType.OBJECT,
-        required: ['carId', 'filename', 'contentType', 'category'],
+        required: ['filename', 'contentType', 'category'],
         properties: {
           carId:       { type: apigateway.JsonSchemaType.STRING },
           eventId:     { type: apigateway.JsonSchemaType.STRING },
           filename:    { type: apigateway.JsonSchemaType.STRING },
           contentType: { type: apigateway.JsonSchemaType.STRING },
-          category:    { type: apigateway.JsonSchemaType.STRING, enum: ['photo', 'document'] },
+          category:    { type: apigateway.JsonSchemaType.STRING, enum: ['photo', 'document', 'avatar'] },
         },
       },
     });

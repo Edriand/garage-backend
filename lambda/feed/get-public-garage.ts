@@ -55,6 +55,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     return ok({
       userId,
       isPublic: true,
+      photoKey:  garageResult.Item.photoKey ?? null,
       updatedAt: garageResult.Item.updatedAt,
       cars,
     });

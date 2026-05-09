@@ -12,6 +12,7 @@ import {
 
 interface UpdateGarageBody {
   isPublic: boolean;
+  photoKey?: string;
 }
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
@@ -33,16 +34,30 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     const now = new Date().toISOString();
 
+    const exprParts  = ['#isPublic = :isPublic', '#updatedAt = :updatedAt'];
+    const attrNames: Record<string, string>  = { '#isPublic': 'isPublic', '#updatedAt': 'updatedAt' };
+    const attrValues: Record<string, unknown> = { ':isPublic': body.isPublic, ':updatedAt': now };
+
+    if (body.photoKey !== undefined) {
+      if (body.photoKey !== null && !body.photoKey.startsWith(`users/${userId}/profile/`)) {
+        return badRequest('Invalid photoKey: must reference your own profile photo');
+      }
+      exprParts.push('#photoKey = :photoKey');
+      attrNames['#photoKey']  = 'photoKey';
+      attrValues[':photoKey'] = body.photoKey;
+    }
+
     await ddb.send(new UpdateCommand({
-      TableName:        TABLE_NAME,
-      Key:              { PK: userKey(userId), SK: GARAGE_SETTINGS_SK },
-      UpdateExpression: 'SET #isPublic = :isPublic, #updatedAt = :updatedAt',
-      ExpressionAttributeNames:  { '#isPublic': 'isPublic', '#updatedAt': 'updatedAt' },
-      ExpressionAttributeValues: { ':isPublic': body.isPublic, ':updatedAt': now },
+      TableName:                 TABLE_NAME,
+      Key:                       { PK: userKey(userId), SK: GARAGE_SETTINGS_SK },
+      UpdateExpression:          `SET ${exprParts.join(', ')}`,
+      ExpressionAttributeNames:  attrNames,
+      ExpressionAttributeValues: attrValues,
     }));
 
     return ok({
       isPublic:  body.isPublic,
+      ...(body.photoKey !== undefined && { photoKey: body.photoKey }),
       updatedAt: now,
     });
   } catch (err) {
