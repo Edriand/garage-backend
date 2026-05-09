@@ -28,6 +28,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     return ok({
       isPublic:  result.Item.isPublic ?? false,
+      photoKey:  result.Item.photoKey  ?? null,
       updatedAt: result.Item.updatedAt,
     });
   } catch (err) {
